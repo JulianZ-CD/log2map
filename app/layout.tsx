@@ -42,6 +42,7 @@ export default function RootLayout({
                     </Link>
                     <Link href={"/location-parser"}>Location Parser</Link>
                     <Link href={"/location-map"}>Location Map</Link>
+                    <Link href={"/3d-map"}>3D Google Map</Link>
                   </div>
                   {!hasEnvVars ? <EnvVarWarning /> : <HeaderAuth />}
                 </div>
