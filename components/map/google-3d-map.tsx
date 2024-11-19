@@ -29,10 +29,62 @@ export default function Google3DMap() {
   const [targetLat, setTargetLat] = useState("47.7412358");
   const [targetLong, setTargetLong] = useState("-122.2157236");
   const [error, setError] = useState<string | null>(null);
+  const [apiKey, setApiKey] = useState<string | null>(null);
+
+  // 在组件加载时获取 API key
+  useEffect(() => {
+    const fetchApiKey = async () => {
+      try {
+        const response = await fetch("/api/map");
+        const { key } = await response.json();
+        setApiKey(key);
+      } catch (error) {
+        console.error("Failed to fetch API key:", error);
+        setError("Failed to load map API");
+      }
+    };
+
+    fetchApiKey();
+  }, []);
+
+  // 修改地图初始化逻辑
+  useEffect(() => {
+    // 只在 apiKey 存在时初始化地图
+    if (!apiKey) return;
+
+    const initMap = async () => {
+      if (typeof window !== "undefined" && mapRef.current) {
+        if (!isScriptLoaded) {
+          const script = document.createElement("script");
+          script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=alpha&libraries=maps3d,marker`;
+          script.async = true;
+          script.defer = true; // 添加 defer
+          script.onload = () => {
+            isScriptLoaded = true;
+            const map = document.createElement("gmp-map-3d");
+            map.setAttribute("center", `43.6425, -79.3871`);
+            map.setAttribute("tilt", "60");
+            map.setAttribute("range", "2000");
+            map.style.height = "100%";
+            mapRef.current?.appendChild(map);
+          };
+          document.head.appendChild(script);
+          scriptRef.current = script;
+        }
+      }
+    };
+
+    initMap();
+  }, [apiKey]); // 依赖于 apiKey
 
   // 处理表单提交
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!apiKey) {
+      setError("Map API key not loaded");
+      return;
+    }
+
     const supabase = createClient();
 
     try {
@@ -45,14 +97,11 @@ export default function Google3DMap() {
       setLogEntries(data);
       setError(null);
 
-      // 创建新的地图
       if (mapRef.current) {
-        // 清除现有地图
         while (mapRef.current.firstChild) {
           mapRef.current.removeChild(mapRef.current.firstChild);
         }
 
-        // 创建新地图
         const map = document.createElement("gmp-map-3d");
         map.setAttribute("center", `${targetLat}, ${targetLong}`);
         map.setAttribute("tilt", "60");
@@ -60,11 +109,11 @@ export default function Google3DMap() {
         map.style.height = "100%";
         mapRef.current.appendChild(map);
 
-        // 确保脚本已加载
         if (!isScriptLoaded) {
           const script = document.createElement("script");
-          script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.GOOGLE_MAPS_API_KEY}&v=alpha&libraries=maps3d,marker`;
+          script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=alpha&libraries=maps3d,marker`;
           script.async = true;
+          script.defer = true;
           script.onload = async () => {
             isScriptLoaded = true;
             await createMarkers(map, data);
@@ -104,35 +153,6 @@ export default function Google3DMap() {
       map.append(marker);
     });
   };
-
-  // 修改 useEffect，添加脚本加载逻辑
-  useEffect(() => {
-    if (typeof window !== "undefined" && mapRef.current) {
-      if (!isScriptLoaded) {
-        const script = document.createElement("script");
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&v=alpha&libraries=maps3d,marker`;
-        script.async = true;
-        script.onload = () => {
-          isScriptLoaded = true;
-          const map = document.createElement("gmp-map-3d");
-          map.setAttribute("center", `43.6425, -79.3871`);
-          map.setAttribute("tilt", "60");
-          map.setAttribute("range", "2000");
-          map.style.height = "100%";
-          mapRef.current?.appendChild(map);
-        };
-        document.head.appendChild(script);
-        scriptRef.current = script;
-      } else {
-        const map = document.createElement("gmp-map-3d");
-        map.setAttribute("center", `${targetLat}, ${targetLong}`);
-        map.setAttribute("tilt", "60");
-        map.setAttribute("range", "1000");
-        map.style.height = "100%";
-        mapRef.current.appendChild(map);
-      }
-    }
-  }, []); // 只在组件挂载时运行一次
 
   return (
     <div className="flex flex-col h-full gap-4">
