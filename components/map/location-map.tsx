@@ -10,6 +10,8 @@ import { createClient } from "@/utils/supabase/client";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Button } from "../ui/button";
+import type { LogEntry } from "@/types/location";
+import { formatTimestamp, parseCoordinates } from "@/utils/location";
 
 // 自定义标记图标
 const customIcon = new L.Icon({
@@ -35,17 +37,6 @@ const createClusterCustomIcon = function (cluster: L.MarkerCluster) {
     iconAnchor: L.point(20, 20),
   });
 };
-
-// 类型定义
-interface LogEntry {
-  id: number;
-  timestamp_ms: number;
-  lat: number;
-  long: number;
-  accuracy: number;
-  dist_meters: number;
-  raw_message: string;
-}
 
 export default function LocationMap() {
   const mapRef = useRef<L.Map | null>(null);
@@ -77,20 +68,6 @@ export default function LocationMap() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "An error occurred");
     }
-  };
-
-  // 格式化时间戳
-  const formatTimestamp = (timestamp_ms: number) => {
-    const date = new Date(timestamp_ms);
-    return date.toLocaleString("en-US", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-    });
   };
 
   // 计算地图中心点

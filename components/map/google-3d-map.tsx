@@ -5,6 +5,8 @@ import { createClient } from "@/utils/supabase/client";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Button } from "../ui/button";
+import type { LogEntry } from "@/types/location";
+import { formatTimestamp, parseCoordinates } from "@/utils/location";
 
 // 跟踪脚本是否已加载
 let isScriptLoaded = false;
@@ -18,16 +20,6 @@ declare global {
       };
     };
   }
-}
-
-interface LogEntry {
-  id: number;
-  timestamp_ms: number;
-  lat: number;
-  long: number;
-  accuracy: number;
-  dist_meters: number;
-  raw_message: string;
 }
 
 export default function Google3DMap() {
@@ -109,20 +101,6 @@ export default function Google3DMap() {
       });
 
       map.append(marker);
-    });
-  };
-
-  // 格式化时间戳
-  const formatTimestamp = (timestamp_ms: number) => {
-    const date = new Date(timestamp_ms);
-    return date.toLocaleString("en-US", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
     });
   };
 
