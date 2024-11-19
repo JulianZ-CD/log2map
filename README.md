@@ -1,96 +1,127 @@
-<a href="https://demo-nextjs-with-supabase.vercel.app/">
-  <img alt="Next.js and Supabase Starter Kit - the fastest way to build apps with Next.js and Supabase" src="https://demo-nextjs-with-supabase.vercel.app/opengraph-image.png">
-  <h1 align="center">Next.js and Supabase Starter Kit</h1>
-</a>
+# Log2Map
 
-<p align="center">
- The fastest way to build apps with Next.js and Supabase
-</p>
+> Try it now: [log2map](https://log2map.vercel.app)
 
-<p align="center">
-  <a href="#features"><strong>Features</strong></a> ·
-  <a href="#demo"><strong>Demo</strong></a> ·
-  <a href="#deploy-to-vercel"><strong>Deploy to Vercel</strong></a> ·
-  <a href="#clone-and-run-locally"><strong>Clone and run locally</strong></a> ·
-  <a href="#feedback-and-issues"><strong>Feedback and issues</strong></a>
-  <a href="#more-supabase-examples"><strong>More Examples</strong></a>
-</p>
-<br/>
+A full-stack application that parses location logs and visualizes them on interactive maps, built with Next.js 13+ and Supabase.
 
 ## Features
 
-- Works across the entire [Next.js](https://nextjs.org) stack
-  - App Router
-  - Pages Router
-  - Middleware
-  - Client
-  - Server
-  - It just works!
-- supabase-ssr. A package to configure Supabase Auth to use cookies
-- Styling with [Tailwind CSS](https://tailwindcss.com)
-- Components with [shadcn/ui](https://ui.shadcn.com/)
-- Optional deployment with [Supabase Vercel Integration and Vercel deploy](#deploy-your-own)
-  - Environment variables automatically assigned to Vercel project
+### Core Functionality
+- **Log Processing**
+  - Parse raw location logs with timestamps and coordinates
+  - Batch processing support
+  - Automatic timestamp and coordinate extraction
+  - Data validation and error handling
 
-## Demo
+- **Map Visualization**
+  - Interactive 2D maps with Leaflet
+  - 3D terrain visualization with Google Maps
+  - Clustered markers for large datasets
+  - Real-time location updates
 
-You can view a fully working demo at [demo-nextjs-with-supabase.vercel.app](https://demo-nextjs-with-supabase.vercel.app/).
+- **Data Analysis**
+  - Location accuracy tracking
+  - Distance calculations
+  - Temporal analysis
+  - Spatial querying
 
-## Deploy to Vercel
+### Technical Features
+- **Modern Stack**
+  - Next.js 20+ App Router
+  - Server & Client Components
+  - TypeScript for type safety
+  - Middleware for request handling
 
-Vercel deployment will guide you through creating a Supabase account and project.
+- **Database & Storage**
+  - PostgreSQL with PostGIS extension
+  - Spatial indexing for efficient queries
+  - Real-time data synchronization via Supabase
+  - Secure data access control
 
-After installation of the Supabase integration, all relevant environment variables will be assigned to the project so the deployment is fully functioning.
+- **UI/UX**
+  - Responsive design with Tailwind CSS
+  - shadcn/ui component library
+  - Dark/light mode support
+  - Mobile-friendly interface
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-supabase&project-name=nextjs-with-supabase&repository-name=nextjs-with-supabase&demo-title=nextjs-with-supabase&demo-description=This+starter+configures+Supabase+Auth+to+use+cookies%2C+making+the+user%27s+session+available+throughout+the+entire+Next.js+app+-+Client+Components%2C+Server+Components%2C+Route+Handlers%2C+Server+Actions+and+Middleware.&demo-url=https%3A%2F%2Fdemo-nextjs-with-supabase.vercel.app%2F&external-id=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-supabase&demo-image=https%3A%2F%2Fdemo-nextjs-with-supabase.vercel.app%2Fopengraph-image.png)
+## Architecture
 
-The above will also clone the Starter kit to your GitHub, you can clone that locally and develop locally.
+### Technology Stack
+- Frontend: Next.js 20+ (App Router)
+- Deployment: Vercel
+- Database: Supabase (PostgreSQL + PostGIS)
+- Maps: Leaflet (2D) & Google Maps (3D)
+- Styling: Tailwind CSS & shadcn/ui
 
-If you wish to just develop locally and not deploy to Vercel, [follow the steps below](#clone-and-run-locally).
+### System Architecture
 
-## Clone and run locally
+```mermaid
+graph LR
+    A[Next.js Frontend] -->|Deploy| B[Vercel]
+    B -->|Serve| A
+    
+    A -->|Database Query| C[Supabase API]
+    C -->|SQL Query| D[PostgreSQL + PostGIS]
+    D -->|Location Data| C
+    C -->|JSON Response| A
+    
+    E[Log Parser] -->|Extract| F[Raw Location Logs]
+    F -->|Transform| G[Structured Data]
+    G -->|Insert| D
+    
+    H[Map Components] -->|Fetch| C
+    C -->|Locations| H
+```
 
-1. You'll first need a Supabase project which can be made [via the Supabase dashboard](https://database.new)
+## Getting Started
 
-2. Create a Next.js app using the Supabase Starter template npx command
+### Prerequisites
+1. Supabase Project
+2. Node.js 20+ installed
+3. Google Maps API Key (for 3D visualization)
 
-   ```bash
-   npx create-next-app -e with-supabase
-   ```
+### Database Setup
+Execute the following SQL in your Supabase SQL Editor:
 
-3. Use `cd` to change into the app's directory
+```sql
+-- Create location logs table with PostGIS support
+create table public.parsed_logs (
+    id bigint generated by default as identity not null,
+    timestamp_ms bigint not null,
+    location geography not null,
+    accuracy double precision null,
+    raw_message text null,
+    created_at timestamp with time zone null default current_timestamp,
+    constraint parsed_logs_pkey primary key (id)
+);
 
-   ```bash
-   cd name-of-new-app
-   ```
+-- Create spatial index
+create index parsed_logs_geo_index on public.parsed_logs using gist (location);
+```
 
-4. Rename `.env.example` to `.env.local` and update the following:
+### Deployment
+1. Configure environment variables:
+```bash
+# Rename .env.example to .env.local and update:
+NEXT_PUBLIC_SUPABASE_URL=[INSERT SUPABASE PROJECT URL]
+NEXT_PUBLIC_SUPABASE_ANON_KEY=[INSERT SUPABASE PROJECT API ANON KEY]
+GOOGLE_MAPS_API_KEY=[INSERT GOOGLE MAPS API KEY]
+```
 
-   ```
-   NEXT_PUBLIC_SUPABASE_URL=[INSERT SUPABASE PROJECT URL]
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=[INSERT SUPABASE PROJECT API ANON KEY]
-   ```
+2. Install dependencies and start the development server:
+```bash
+npm install
+npm run dev
+```
 
-   Both `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` can be found in [your Supabase project's API settings](https://app.supabase.com/project/_/settings/api)
+The application will be available at [localhost:3000](http://localhost:3000)
 
-5. You can now run the Next.js local development server:
+3. Commit & Push
+4. Vercel will detect the change and deploys automatically 
 
-   ```bash
-   npm run dev
-   ```
 
-   The starter kit should now be running on [localhost:3000](http://localhost:3000/).
 
-6. This template comes with the default shadcn/ui style initialized. If you instead want other ui.shadcn styles, delete `components.json` and [re-install shadcn/ui](https://ui.shadcn.com/docs/installation/next)
-
-> Check out [the docs for Local Development](https://supabase.com/docs/guides/getting-started/local-development) to also run Supabase locally.
-
-## Feedback and issues
-
-Please file feedback and issues over on the [Supabase GitHub org](https://github.com/supabase/supabase/issues/new/choose).
-
-## More Supabase examples
-
+## More Examples
 - [Next.js Subscription Payments Starter](https://github.com/vercel/nextjs-subscription-payments)
 - [Cookie-based Auth and the Next.js 13 App Router (free course)](https://youtube.com/playlist?list=PL5S4mPUpp4OtMhpnp93EFSo42iQ40XjbF)
 - [Supabase Auth and the Next.js App Router](https://github.com/supabase/supabase/tree/master/examples/auth/nextjs)
