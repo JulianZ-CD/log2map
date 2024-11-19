@@ -63,7 +63,7 @@ export default function Google3DMap() {
         // 确保脚本已加载
         if (!isScriptLoaded) {
           const script = document.createElement("script");
-          script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&v=alpha&libraries=maps3d,marker`;
+          script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.GOOGLE_MAPS_API_KEY}&v=alpha&libraries=maps3d,marker`;
           script.async = true;
           script.onload = async () => {
             isScriptLoaded = true;
