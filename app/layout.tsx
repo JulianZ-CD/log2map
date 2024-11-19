@@ -38,11 +38,11 @@ export default function RootLayout({
                   <div className="flex gap-5 items-center font-semibold">
                     <Link href={"/"}>Next.js Supabase Starter</Link>
                     <Link href={"/location-parser"}>Location Parser</Link>
+                    <Link href={"/3d-map"}>3D Google Map</Link>
                     <Link href={"/distance-calculator"}>
                       Distance Calculator
                     </Link>
-                    <Link href={"/location-map"}>Location Map</Link>
-                    <Link href={"/3d-map"}>3D Google Map</Link>
+                    <Link href={"/leaflet-2d-map"}>2D Leaflet Map</Link>
                   </div>
                   {!hasEnvVars ? <EnvVarWarning /> : <HeaderAuth />}
                 </div>

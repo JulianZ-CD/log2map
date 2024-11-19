@@ -41,8 +41,8 @@ const createClusterCustomIcon = function (cluster: L.MarkerCluster) {
 export default function LocationMap() {
   const mapRef = useRef<L.Map | null>(null);
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
-  const [targetLat, setTargetLat] = useState("47.7412358");
-  const [targetLong, setTargetLong] = useState("-122.2157236");
+  const [targetLat, setTargetLat] = useState("33.008770");
+  const [targetLong, setTargetLong] = useState("-96.668880");
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {

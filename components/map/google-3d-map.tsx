@@ -26,8 +26,8 @@ export default function Google3DMap() {
   const mapRef = useRef<HTMLDivElement>(null);
   const scriptRef = useRef<HTMLScriptElement | null>(null);
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
-  const [targetLat, setTargetLat] = useState("47.7412358");
-  const [targetLong, setTargetLong] = useState("-122.2157236");
+  const [targetLat, setTargetLat] = useState("33.008770");
+  const [targetLong, setTargetLong] = useState("-96.668880");
   const [error, setError] = useState<string | null>(null);
   const [apiKey, setApiKey] = useState<string | null>(null);
 
@@ -58,11 +58,11 @@ export default function Google3DMap() {
           const script = document.createElement("script");
           script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=alpha&libraries=maps3d,marker`;
           script.async = true;
-          script.defer = true; // 添加 defer
+          script.defer = true;
           script.onload = () => {
             isScriptLoaded = true;
             const map = document.createElement("gmp-map-3d");
-            map.setAttribute("center", `43.6425, -79.3871`);
+            map.setAttribute("center", `33.008770, -96.668880`);
             map.setAttribute("tilt", "60");
             map.setAttribute("range", "2000");
             map.style.height = "100%";
@@ -131,26 +131,27 @@ export default function Google3DMap() {
 
   // 将标记创建逻辑抽取为单独的函数
   const createMarkers = async (map: Element, entries: LogEntry[]) => {
-    const { Marker3DElement } =
+    const { Marker3DElement, Marker3DInteractiveElement } =
       await window.google.maps.importLibrary("maps3d");
 
+
     entries.forEach((entry) => {
-      const marker = new Marker3DElement({
+      const interactiveMarker = new Marker3DInteractiveElement({
         position: { lat: entry.lat, lng: entry.long },
       });
 
-      marker.addEventListener("click", () => {
-        const content = `
-          <div style="padding: 10px">
-            <p><strong>Time:</strong> ${formatTimestamp(entry.timestamp_ms)}</p>
-            <p><strong>Accuracy:</strong> ${entry.accuracy.toFixed(2)}m</p>
-            <p><strong>Distance:</strong> ${entry.dist_meters.toFixed(2)}m</p>
-          </div>
-        `;
-        console.log(content);
+      interactiveMarker.addEventListener("gmp-click", (event: any) => {
+        // `
+        //   <div>
+        //     <p><strong>Time:</strong> ${formatTimestamp(entry.timestamp_ms)}</p>
+        //     <p><strong>Accuracy:</strong> ${entry.accuracy.toFixed(2)}m</p>
+        //     <p><strong>Distance:</strong> ${entry.dist_meters.toFixed(2)}m</p>
+        //   </div>
+        // `;
+        alert("111");
       });
 
-      map.append(marker);
+      map.append(interactiveMarker);
     });
   };
 

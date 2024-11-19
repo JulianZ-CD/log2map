@@ -1,4 +1,4 @@
-import MapWrapper from "@/components/map/map-wrapper";
+import MapWrapper from "@/components/map/leaflet-2d-map-wrapper";
 
 export default function LocationMapPage() {
   return (
