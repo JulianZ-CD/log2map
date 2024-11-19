@@ -81,7 +81,7 @@ export default function LocationParserForm() {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 w-full max-w-4xl mx-auto">
       <form onSubmit={handleLogParse} className="flex flex-col gap-4">
         <div className="grid gap-2">
           <Label htmlFor="log-text">Location Log Text</Label>
@@ -90,12 +90,22 @@ export default function LocationParserForm() {
             value={logText}
             onChange={(e) => setLogText(e.target.value)}
             placeholder="Paste your location log here..."
-            className="min-h-[200px] font-mono text-sm"
+            className="min-h-[200px] font-mono text-sm w-full"
           />
         </div>
 
         <div className="flex gap-2">
           <Button type="submit">Parse Log</Button>
+          <Button
+            type="button"
+            onClick={() => {
+              setLogText("");
+              setParsedLocations([]);
+              setError(null);
+            }}
+          >
+            Clear
+          </Button>
           {parsedLocations.length > 0 && (
             <Button type="button" onClick={handleUpload} disabled={isUploading}>
               {isUploading ? "Uploading..." : "Upload to Database"}

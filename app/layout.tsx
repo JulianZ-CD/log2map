@@ -37,33 +37,35 @@ export default function RootLayout({
                 <div className="w-full max-w-5xl flex justify-between items-center p-3 px-5 text-sm">
                   <div className="flex gap-5 items-center font-semibold">
                     <Link href={"/"}>Next.js Supabase Starter</Link>
+                    <Link href={"/location-parser"}>Location Parser</Link>
                     <Link href={"/distance-calculator"}>
                       Distance Calculator
                     </Link>
-                    <Link href={"/location-parser"}>Location Parser</Link>
                     <Link href={"/location-map"}>Location Map</Link>
                     <Link href={"/3d-map"}>3D Google Map</Link>
                   </div>
                   {!hasEnvVars ? <EnvVarWarning /> : <HeaderAuth />}
+                </div>
+                <div className="flex gap-5 items-center">
+                  <ThemeSwitcher />
                 </div>
               </nav>
               <div className="flex flex-col max-w-5xl p-5 flex-grow">
                 {children}
               </div>
 
-              <footer className="w-full flex items-center justify-center border-t mx-auto text-center text-xs gap-8 py-16">
+              <footer className="w-full flex items-center justify-center border-t mx-auto text-center text-xs gap-4 py-4">
                 <p>
-                  Powered by{" "}
+                  Hello. This is a project by Julian.{" "}
                   <a
-                    href="https://supabase.com/?utm_source=create-next-app&utm_medium=template&utm_term=nextjs"
+                    href="https://github.com/JulianZ-CD/log2map"
                     target="_blank"
                     className="font-bold hover:underline"
                     rel="noreferrer"
                   >
-                    Supabase
+                    Github
                   </a>
                 </p>
-                <ThemeSwitcher />
               </footer>
             </div>
           </main>
