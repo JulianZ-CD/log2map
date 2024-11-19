@@ -82,11 +82,12 @@ export default function Google3DMap() {
 
   // 将标记创建逻辑抽取为单独的函数
   const createMarkers = async (map: Element, entries: LogEntry[]) => {
-    const { Marker3DElement } = await window.google.maps.importLibrary("maps3d");
-    
+    const { Marker3DElement } =
+      await window.google.maps.importLibrary("maps3d");
+
     entries.forEach((entry) => {
       const marker = new Marker3DElement({
-        position: { lat: entry.lat, lng: entry.long }
+        position: { lat: entry.lat, lng: entry.long },
       });
 
       marker.addEventListener("click", () => {
@@ -104,15 +105,32 @@ export default function Google3DMap() {
     });
   };
 
-  // 简化 useEffect，只在组件首次加载时创建地图
+  // 修改 useEffect，添加脚本加载逻辑
   useEffect(() => {
     if (typeof window !== "undefined" && mapRef.current) {
-      const map = document.createElement("gmp-map-3d");
-      map.setAttribute("center", `${targetLat}, ${targetLong}`);
-      map.setAttribute("tilt", "60");
-      map.setAttribute("range", "1000");
-      map.style.height = "100%";
-      mapRef.current.appendChild(map);
+      if (!isScriptLoaded) {
+        const script = document.createElement("script");
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&v=alpha&libraries=maps3d,marker`;
+        script.async = true;
+        script.onload = () => {
+          isScriptLoaded = true;
+          const map = document.createElement("gmp-map-3d");
+          map.setAttribute("center", `43.6425, -79.3871`);
+          map.setAttribute("tilt", "60");
+          map.setAttribute("range", "2000");
+          map.style.height = "100%";
+          mapRef.current?.appendChild(map);
+        };
+        document.head.appendChild(script);
+        scriptRef.current = script;
+      } else {
+        const map = document.createElement("gmp-map-3d");
+        map.setAttribute("center", `${targetLat}, ${targetLong}`);
+        map.setAttribute("tilt", "60");
+        map.setAttribute("range", "1000");
+        map.style.height = "100%";
+        mapRef.current.appendChild(map);
+      }
     }
   }, []); // 只在组件挂载时运行一次
 
