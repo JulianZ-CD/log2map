@@ -1,3 +1,11 @@
+export interface ParsedLocation {
+  timestamp_ms: number;
+  lat: number;
+  long: number;
+  accuracy: number;
+  raw_message: string;
+}
+
 export interface LogEntry {
   id: number;
   timestamp_ms: number;
@@ -11,4 +19,4 @@ export interface LogEntry {
 export interface Coordinates {
   lat: number;
   long: number;
-} 
+}

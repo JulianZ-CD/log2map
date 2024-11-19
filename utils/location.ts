@@ -18,4 +18,4 @@ export const parseCoordinates = (lat: string, long: string): Coordinates => {
     lat: parseFloat(lat),
     long: parseFloat(long),
   };
-}; 
+};
