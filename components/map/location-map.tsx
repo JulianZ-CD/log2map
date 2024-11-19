@@ -48,7 +48,7 @@ interface LogEntry {
 }
 
 export default function LocationMap() {
-  const mapRef = useRef(null);
+  const mapRef = useRef<L.Map | null>(null);
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   const [targetLat, setTargetLat] = useState("47.7412358");
   const [targetLong, setTargetLong] = useState("-122.2157236");
@@ -68,12 +68,10 @@ export default function LocationMap() {
       setLogEntries(data);
       setError(null);
 
-      // 如果地图引用存在，更新地图中心点
       if (mapRef.current) {
-        const map = (mapRef.current as any)?.leafletElement;
-        map?.setView(
+        mapRef.current.setView(
           [parseFloat(targetLat), parseFloat(targetLong)],
-          map.getZoom()
+          mapRef.current.getZoom()
         );
       }
     } catch (e) {
