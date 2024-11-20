@@ -11,6 +11,8 @@ import { formatTimestamp } from "@/utils/location";
 import { createMarkers } from "@/utils/map/markers";
 import { createPolygons } from "@/utils/map/polygons";
 import { flyThroughLocations } from "@/utils/map/flyCamera";
+import { Analytics, analyzeLocationData } from "@/utils/analytics";
+import { AnalyticsDisplay } from "./analytics-display";
 
 // 跟踪脚本是否已加载
 let isScriptLoaded = false;
@@ -33,6 +35,8 @@ export default function Google3DMap() {
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<LogEntry | null>(null);
   const [showRangeSettings, setShowRangeSettings] = useState(false);
+  const [analytics, setAnalytics] = useState<Analytics | null>(null);
+  const [showAnalytics, setShowAnalytics] = useState(false);
 
   // 将所有地图控制状态合并到一个对象中
   const [mapControls, setMapControls] = useState<MapControls>({
@@ -134,6 +138,7 @@ export default function Google3DMap() {
 
       if (error) throw error;
       setLogEntries(data);
+      setAnalytics(analyzeLocationData(data, mapControls.distanceRanges.good));
       setError(null);
 
       // 计算中心点
@@ -250,7 +255,7 @@ export default function Google3DMap() {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full gap-4">
       <form onSubmit={handleSubmit} className="flex flex-col gap-2 px-4 py-2">
         <div className="flex items-center gap-4 mb-4">
           <Label htmlFor="use-target" className="flex items-center gap-2">
@@ -274,140 +279,140 @@ export default function Google3DMap() {
         </div>
 
         {mapControls.useTargetLocation && (
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="map-latitude">Target Latitude</Label>
-              <Input
-                id="map-latitude"
-                type="number"
-                step="any"
-                value={mapControls.targetLat}
-                onChange={(e) => updateMapControl("targetLat", e.target.value)}
-                required
-              />
+          <>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="map-latitude">Target Latitude</Label>
+                <Input
+                  id="map-latitude"
+                  type="number"
+                  step="any"
+                  value={mapControls.targetLat}
+                  onChange={(e) => updateMapControl("targetLat", e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="map-longitude">Target Longitude</Label>
+                <Input
+                  id="map-longitude"
+                  type="number"
+                  step="any"
+                  value={mapControls.targetLong}
+                  onChange={(e) => updateMapControl("targetLong", e.target.value)}
+                  required
+                />
+              </div>
             </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="map-longitude">Target Longitude</Label>
-              <Input
-                id="map-longitude"
-                type="number"
-                step="any"
-                value={mapControls.targetLong}
-                onChange={(e) => updateMapControl("targetLong", e.target.value)}
-                required
-              />
-            </div>
-          </div>
-        )}
-
-        {mapControls.useTargetLocation && (
-          <div className="space-y-4 border-t pt-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <Label
-                  htmlFor="color-coding"
-                  className="flex items-center gap-2"
-                >
-                  <Input
-                    id="color-coding"
-                    type="checkbox"
-                    className="w-4 h-4"
-                    checked={mapControls.useColorCoding}
-                    onChange={(e) =>
-                      updateMapControl("useColorCoding", e.target.checked)
-                    }
-                  />
-                  Enable color coding for markers
-                </Label>
-
-                <Label
-                  htmlFor="show-polygon"
-                  className="flex items-center gap-2"
-                >
-                  <Input
-                    id="show-polygon"
-                    type="checkbox"
-                    className="w-4 h-4"
-                    checked={mapControls.showPolygon}
-                    onChange={(e) =>
-                      updateMapControl("showPolygon", e.target.checked)
-                    }
-                  />
-                  Show Area Polygon
-                </Label>
-
-                {mapControls.showPolygon && (
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="coverage-range">Coverage (m):</Label>
+            <div className="space-y-4 border-t pt-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <Label
+                    htmlFor="color-coding"
+                    className="flex items-center gap-2"
+                  >
                     <Input
-                      id="coverage-range"
-                      type="number"
-                      className="w-20"
-                      value={mapControls.coverageRange}
+                      id="color-coding"
+                      type="checkbox"
+                      className="w-4 h-4"
+                      checked={mapControls.useColorCoding}
                       onChange={(e) =>
-                        updateMapControl(
-                          "coverageRange",
-                          Number(e.target.value)
-                        )
+                        updateMapControl("useColorCoding", e.target.checked)
                       }
-                      min="1"
-                      max="100"
+                    />
+                    Enable color coding for markers
+                  </Label>
+
+                  <Label
+                    htmlFor="show-polygon"
+                    className="flex items-center gap-2"
+                  >
+                    <Input
+                      id="show-polygon"
+                      type="checkbox"
+                      className="w-4 h-4"
+                      checked={mapControls.showPolygon}
+                      onChange={(e) =>
+                        updateMapControl("showPolygon", e.target.checked)
+                      }
+                    />
+                    Show Area Polygon
+                  </Label>
+
+                  {mapControls.showPolygon && (
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="coverage-range">Coverage (m):</Label>
+                      <Input
+                        id="coverage-range"
+                        type="number"
+                        className="w-20"
+                        value={mapControls.coverageRange}
+                        onChange={(e) =>
+                          updateMapControl(
+                            "coverageRange",
+                            Number(e.target.value)
+                          )
+                        }
+                        min="1"
+                        max="100"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowRangeSettings(!showRangeSettings)}
+                >
+                  {showRangeSettings ? "Hide" : "Show"} Range Settings
+                </Button>
+              </div>
+
+              {showRangeSettings && mapControls.useColorCoding && (
+                <div className="grid gap-4 p-4 border rounded-lg">
+                  <div className="grid gap-2">
+                    <Label htmlFor="excellent-range">
+                      Excellent Range (Green) - Up to (meters):
+                    </Label>
+                    <Input
+                      id="excellent-range"
+                      type="number"
+                      value={mapControls.distanceRanges.excellent}
+                      onChange={(e) =>
+                        updateMapControl("distanceRanges", {
+                          ...mapControls.distanceRanges,
+                          excellent: Number(e.target.value),
+                        })
+                      }
+                      min="0"
                     />
                   </div>
-                )}
-              </div>
 
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setShowRangeSettings(!showRangeSettings)}
-              >
-                {showRangeSettings ? "Hide" : "Show"} Range Settings
-              </Button>
+                  <div className="grid gap-2">
+                    <Label htmlFor="good-range">
+                      Good Range (Yellow) - Up to (meters):
+                    </Label>
+                    <Input
+                      id="good-range"
+                      type="number"
+                      value={mapControls.distanceRanges.good}
+                      onChange={(e) =>
+                        updateMapControl("distanceRanges", {
+                          ...mapControls.distanceRanges,
+                          good: Number(e.target.value),
+                        })
+                      }
+                      min={mapControls.distanceRanges.excellent}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
-
-            {showRangeSettings && mapControls.useColorCoding && (
-              <div className="grid gap-4 p-4 border rounded-lg">
-                <div className="grid gap-2">
-                  <Label htmlFor="excellent-range">
-                    Excellent Range (Green) - Up to (meters):
-                  </Label>
-                  <Input
-                    id="excellent-range"
-                    type="number"
-                    value={mapControls.distanceRanges.excellent}
-                    onChange={(e) =>
-                      updateMapControl("distanceRanges", {
-                        ...mapControls.distanceRanges,
-                        excellent: Number(e.target.value),
-                      })
-                    }
-                    min="0"
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="good-range">
-                    Good Range (Yellow) - Up to (meters):
-                  </Label>
-                  <Input
-                    id="good-range"
-                    type="number"
-                    value={mapControls.distanceRanges.good}
-                    onChange={(e) =>
-                      updateMapControl("distanceRanges", {
-                        ...mapControls.distanceRanges,
-                        good: Number(e.target.value),
-                      })
-                    }
-                    min={mapControls.distanceRanges.excellent}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
+          </>
         )}
 
         <Button type="submit">Update Location</Button>
@@ -487,21 +492,23 @@ export default function Google3DMap() {
         )}
       </div>
 
-      <div className="p-2 overflow-auto bg-white">
-        <h3 className="text-lg font-bold mb-1 text-black">
-          Debug Information:
-        </h3>
-        <div className="space-y-2 text-black">
-          <p>Total locations: {logEntries.length}</p>
-          <details>
-            <summary className="cursor-pointer hover:text-blue-600">
-              Raw Data (Click to expand)
-            </summary>
-            <pre className="mt-2 text-sm overflow-auto bg-gray-50 p-2 rounded">
-              {JSON.stringify(logEntries, null, 2)}
-            </pre>
-          </details>
-        </div>
+      <div className="px-4 pb-4">
+        {mapControls.useTargetLocation && (
+          <>
+            <div className="flex justify-end mb-4">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAnalytics(!showAnalytics)}
+              >
+                {showAnalytics ? "Hide" : "Show"} Analytics
+              </Button>
+            </div>
+
+            {showAnalytics && <AnalyticsDisplay analytics={analytics} />}
+          </>
+        )}
       </div>
     </div>
   );
