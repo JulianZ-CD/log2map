@@ -6,12 +6,14 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Button } from "../ui/button";
 import type { LogEntry } from "@/types/location";
-import { formatTimestamp, parseCoordinates } from "@/utils/location";
+import type { MapControls } from "@/types/map";
+import { formatTimestamp } from "@/utils/location";
+import { createMarkers } from "@/utils/map/markers";
+import { createPolygons } from "@/utils/map/polygons";
 
 // 跟踪脚本是否已加载
 let isScriptLoaded = false;
 
-// 在文件顶部添加这些类型声明
 declare global {
   interface Window {
     google: {
@@ -26,19 +28,25 @@ export default function Google3DMap() {
   const mapRef = useRef<HTMLDivElement>(null);
   const scriptRef = useRef<HTMLScriptElement | null>(null);
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
-  const [targetLat, setTargetLat] = useState("33.008770");
-  const [targetLong, setTargetLong] = useState("-96.668880");
   const [error, setError] = useState<string | null>(null);
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<LogEntry | null>(null);
-  const [useColorCoding, setUseColorCoding] = useState(true);
-  const [distanceRanges, setDistanceRanges] = useState({
-    excellent: 50,
-    good: 200
-  });
   const [showRangeSettings, setShowRangeSettings] = useState(false);
 
-  // 在组件加载时获取 API key
+  // 将所有地图控制状态合并到一个对象中
+  const [mapControls, setMapControls] = useState<MapControls>({
+    targetLat: "33.008770",
+    targetLong: "-96.668880",
+    useColorCoding: true,
+    showPolygon: true,
+    distanceRanges: {
+      excellent: 50,
+      good: 200,
+    },
+    coverageRange: 20,
+  });
+
+  // API key 获取逻辑保持不变
   useEffect(() => {
     const fetchApiKey = async () => {
       try {
@@ -54,9 +62,8 @@ export default function Google3DMap() {
     fetchApiKey();
   }, []);
 
-  // 修改地图初始化逻辑
+  // 地图初始化逻辑
   useEffect(() => {
-    // 只在 apiKey 存在时初始化地图
     if (!apiKey) return;
 
     const initMap = async () => {
@@ -69,7 +76,7 @@ export default function Google3DMap() {
           script.onload = () => {
             isScriptLoaded = true;
             const map = document.createElement("gmp-map-3d");
-            map.setAttribute("center", `33.008770, -96.668880`);
+            map.setAttribute("center", `${mapControls.targetLat}, ${mapControls.targetLong}`);
             map.setAttribute("tilt", "60");
             map.setAttribute("range", "2000");
             map.style.height = "100%";
@@ -82,7 +89,7 @@ export default function Google3DMap() {
     };
 
     initMap();
-  }, [apiKey]); // 依赖于 apiKey
+  }, [apiKey, mapControls.targetLat, mapControls.targetLong]);
 
   // 处理表单提交
   const handleSubmit = async (e: React.FormEvent) => {
@@ -96,8 +103,8 @@ export default function Google3DMap() {
 
     try {
       const { data, error } = await supabase.rpc("nearby_logs", {
-        lat: parseFloat(targetLat),
-        long: parseFloat(targetLong),
+        lat: parseFloat(mapControls.targetLat),
+        long: parseFloat(mapControls.targetLong),
       });
 
       if (error) throw error;
@@ -105,12 +112,14 @@ export default function Google3DMap() {
       setError(null);
 
       if (mapRef.current) {
+        // 清除现有地图
         while (mapRef.current.firstChild) {
           mapRef.current.removeChild(mapRef.current.firstChild);
         }
 
+        // 创建新地图
         const map = document.createElement("gmp-map-3d");
-        map.setAttribute("center", `${targetLat}, ${targetLong}`);
+        map.setAttribute("center", `${mapControls.targetLat}, ${mapControls.targetLong}`);
         map.setAttribute("tilt", "60");
         map.setAttribute("range", "1000");
         map.style.height = "100%";
@@ -123,12 +132,12 @@ export default function Google3DMap() {
           script.defer = true;
           script.onload = async () => {
             isScriptLoaded = true;
-            await createMarkers(map, data);
+            await updateMapElements(map, data);
           };
           document.head.appendChild(script);
           scriptRef.current = script;
         } else {
-          await createMarkers(map, data);
+          await updateMapElements(map, data);
         }
       }
     } catch (e) {
@@ -136,86 +145,29 @@ export default function Google3DMap() {
     }
   };
 
-  // 将标记创建逻辑抽取为单独的函数
-  const createMarkers = async (map: Element, entries: LogEntry[]) => {
-    const { Marker3DElement, Marker3DInteractiveElement } =
-      await window.google.maps.importLibrary("maps3d");
-    const { PinElement } = await window.google.maps.importLibrary("marker");
+  // 更新地图元素的辅助函数
+  const updateMapElements = async (map: Element, entries: LogEntry[]) => {
+    if (mapControls.showPolygon) {
+      createPolygons(map, entries, mapControls.coverageRange);
+    }
 
-    // 计算所有标记点的经纬度极值
-    const bounds = entries.reduce((acc, entry) => {
-      return {
-        minLat: Math.min(acc.minLat, entry.lat),
-        maxLat: Math.max(acc.maxLat, entry.lat),
-        minLng: Math.min(acc.minLng, entry.long),
-        maxLng: Math.max(acc.maxLng, entry.long),
-      };
-    }, {
-      minLat: entries[0]?.lat || 0,
-      maxLat: entries[0]?.lat || 0,
-      minLng: entries[0]?.long || 0,
-      maxLng: entries[0]?.long || 0,
-    });
+    await createMarkers(
+      map,
+      entries,
+      {
+        useColorCoding: mapControls.useColorCoding,
+        distanceRanges: mapControls.distanceRanges,
+      },
+      setSelectedEntry
+    );
+  };
 
-    // 添加3D多边形
-    const polygon = document.createElement('gmp-polygon-3d');
-    polygon.setAttribute('altitude-mode', 'relative-to-ground');
-    polygon.setAttribute('fill-color', 'rgba(0, 255, 0, 0.5)'); // 绿色半透明
-    polygon.setAttribute('stroke-color', '#0000ff');
-    polygon.setAttribute('stroke-width', '4');
-    polygon.setAttribute('extruded', '');
-
-    // 等待自定义元素定义完成
-    customElements.whenDefined(polygon.localName).then(() => {
-      // @ts-ignore - 设置多边形坐标
-      polygon.outerCoordinates = [
-        { lat: bounds.minLat, lng: bounds.minLng, altitude: 100 },
-        { lat: bounds.maxLat, lng: bounds.minLng, altitude: 100 },
-        { lat: bounds.maxLat, lng: bounds.maxLng, altitude: 100 },
-        { lat: bounds.minLat, lng: bounds.maxLng, altitude: 100 },
-        { lat: bounds.minLat, lng: bounds.minLng, altitude: 100 }, // 闭合多边形
-      ];
-    });
-
-    map.append(polygon);
-
-    // 继续原有的标记创建逻辑
-    entries.forEach((entry) => {
-      // 根据设置决定颜色
-      let pinColor = "#EF4444";
-
-      if (useColorCoding) {
-        if (entry.dist_meters <= distanceRanges.excellent) {
-          pinColor = "#34D399"; // 绿色
-        } else if (entry.dist_meters <= distanceRanges.good) {
-          pinColor = "#FBBC04"; // 黄色
-        } else {
-          pinColor = "#EF4444"; // 红色
-        }
-      }
-
-      const pinBackground = new PinElement({
-        background: pinColor,
-        glyphColor: "#FFFFFF",
-      });
-
-      const interactiveMarker = new Marker3DInteractiveElement({
-        position: { 
-          lat: entry.lat, 
-          lng: entry.long, 
-          altitude: entry.altitude || 0
-        },
-        altitudeMode: 'RELATIVE_TO_GROUND',
-        extruded: true,
-      });
-
-      interactiveMarker.append(pinBackground);
-      interactiveMarker.addEventListener("gmp-click", () => {
-        setSelectedEntry(entry);
-      });
-
-      map.append(interactiveMarker);
-    });
+  // 更新控制状态的辅助函数
+  const updateMapControl = (key: keyof MapControls, value: any) => {
+    setMapControls(prev => ({
+      ...prev,
+      [key]: value
+    }));
   };
 
   return (
@@ -228,8 +180,8 @@ export default function Google3DMap() {
               id="map-latitude"
               type="number"
               step="any"
-              value={targetLat}
-              onChange={(e) => setTargetLat(e.target.value)}
+              value={mapControls.targetLat}
+              onChange={(e) => updateMapControl("targetLat", e.target.value)}
               required
             />
           </div>
@@ -240,36 +192,65 @@ export default function Google3DMap() {
               id="map-longitude"
               type="number"
               step="any"
-              value={targetLong}
-              onChange={(e) => setTargetLong(e.target.value)}
+              value={mapControls.targetLong}
+              onChange={(e) => updateMapControl("targetLong", e.target.value)}
               required
             />
           </div>
         </div>
+
         <div className="space-y-4 border-t pt-4">
           <div className="flex items-center justify-between">
-            <Label htmlFor="color-coding" className="flex items-center gap-2">
-              <Input
-                id="color-coding"
-                type="checkbox"
-                className="w-4 h-4"
-                checked={useColorCoding}
-                onChange={(e) => setUseColorCoding(e.target.checked)}
-              />
-              Enable color coding for markers
-            </Label>
-            
+            <div className="flex items-center gap-4">
+              <Label htmlFor="color-coding" className="flex items-center gap-2">
+                <Input
+                  id="color-coding"
+                  type="checkbox"
+                  className="w-4 h-4"
+                  checked={mapControls.useColorCoding}
+                  onChange={(e) => updateMapControl("useColorCoding", e.target.checked)}
+                />
+                Enable color coding for markers
+              </Label>
+
+              <Label htmlFor="show-polygon" className="flex items-center gap-2">
+                <Input
+                  id="show-polygon"
+                  type="checkbox"
+                  className="w-4 h-4"
+                  checked={mapControls.showPolygon}
+                  onChange={(e) => updateMapControl("showPolygon", e.target.checked)}
+                />
+                Show Area Polygon
+              </Label>
+
+              {mapControls.showPolygon && (
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="coverage-range">Coverage (m):</Label>
+                  <Input
+                    id="coverage-range"
+                    type="number"
+                    className="w-20"
+                    value={mapControls.coverageRange}
+                    onChange={(e) => updateMapControl("coverageRange", Number(e.target.value))}
+                    min="1"
+                    max="100"
+                  />
+                </div>
+              )}
+            </div>
+
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={() => setShowRangeSettings(!showRangeSettings)}
             >
-              {showRangeSettings ? 'Hide' : 'Show'} Range Settings
+              {showRangeSettings ? "Hide" : "Show"} Range Settings
             </Button>
           </div>
 
-          {showRangeSettings && useColorCoding && (
+          {showRangeSettings && mapControls.useColorCoding && (
             <div className="grid gap-4 p-4 border rounded-lg">
               <div className="grid gap-2">
                 <Label htmlFor="excellent-range">
@@ -278,15 +259,17 @@ export default function Google3DMap() {
                 <Input
                   id="excellent-range"
                   type="number"
-                  value={distanceRanges.excellent}
-                  onChange={(e) => setDistanceRanges(prev => ({
-                    ...prev,
-                    excellent: Number(e.target.value)
-                  }))}
+                  value={mapControls.distanceRanges.excellent}
+                  onChange={(e) =>
+                    updateMapControl("distanceRanges", {
+                      ...mapControls.distanceRanges,
+                      excellent: Number(e.target.value),
+                    })
+                  }
                   min="0"
                 />
               </div>
-              
+
               <div className="grid gap-2">
                 <Label htmlFor="good-range">
                   Good Range (Yellow) - Up to (meters):
@@ -294,12 +277,14 @@ export default function Google3DMap() {
                 <Input
                   id="good-range"
                   type="number"
-                  value={distanceRanges.good}
-                  onChange={(e) => setDistanceRanges(prev => ({
-                    ...prev,
-                    good: Number(e.target.value)
-                  }))}
-                  min={distanceRanges.excellent}
+                  value={mapControls.distanceRanges.good}
+                  onChange={(e) =>
+                    updateMapControl("distanceRanges", {
+                      ...mapControls.distanceRanges,
+                      good: Number(e.target.value),
+                    })
+                  }
+                  min={mapControls.distanceRanges.excellent}
                 />
               </div>
             </div>
@@ -339,19 +324,24 @@ export default function Google3DMap() {
               </p>
               <p>
                 <strong>Distance:</strong>{" "}
-                <span className={`inline-flex items-center ${
-                  useColorCoding ? (
-                    selectedEntry.dist_meters <= distanceRanges.excellent ? 'text-green-600' :
-                    selectedEntry.dist_meters <= distanceRanges.good ? 'text-yellow-600' :
-                    'text-red-600'
-                  ) : ''
-                }`}>
+                <span
+                  className={`inline-flex items-center ${
+                    mapControls.useColorCoding
+                      ? selectedEntry.dist_meters <= mapControls.distanceRanges.excellent
+                        ? "text-green-600"
+                        : selectedEntry.dist_meters <= mapControls.distanceRanges.good
+                          ? "text-yellow-600"
+                          : "text-red-600"
+                      : ""
+                  }`}
+                >
                   {selectedEntry.dist_meters.toFixed(2)}m
-                  {useColorCoding && (
-                    selectedEntry.dist_meters <= distanceRanges.excellent ? ' (Excellent)' :
-                    selectedEntry.dist_meters <= distanceRanges.good ? ' (Good)' :
-                    ' (Poor)'
-                  )}
+                  {mapControls.useColorCoding &&
+                    (selectedEntry.dist_meters <= mapControls.distanceRanges.excellent
+                      ? " (Excellent)"
+                      : selectedEntry.dist_meters <= mapControls.distanceRanges.good
+                        ? " (Good)"
+                        : " (Poor)")}
                 </span>
               </p>
             </div>
@@ -360,9 +350,7 @@ export default function Google3DMap() {
       </div>
 
       <div className="p-4 overflow-auto bg-white">
-        <h3 className="text-lg font-bold mb-2 text-black">
-          Debug Information:
-        </h3>
+        <h3 className="text-lg font-bold mb-2 text-black">Debug Information:</h3>
         <div className="space-y-2 text-black">
           <p>Total locations: {logEntries.length}</p>
           <details>
