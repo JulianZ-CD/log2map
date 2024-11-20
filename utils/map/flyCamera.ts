@@ -93,7 +93,7 @@ export const flyThroughLocations = async (
       tilt: 45,
       range: 1000,
     },
-    durationMillis: 1500,
+    durationMillis: 500,
   });
 
   // 等待当前动画结束后继续下一个位置

@@ -13,6 +13,7 @@ import { createPolygons } from "@/utils/map/polygons";
 import { flyThroughLocations } from "@/utils/map/flyCamera";
 import { Analytics, analyzeLocationData } from "@/utils/analytics";
 import { AnalyticsDisplay } from "./analytics-display";
+import { ClickRecordsModal } from "@/utils/map/click-records-modal";
 
 // 跟踪脚本是否已加载
 let isScriptLoaded = false;
@@ -25,6 +26,12 @@ declare global {
       };
     };
   }
+}
+
+interface ClickRecord {
+  lat: number;
+  lng: number;
+  timestamp: number;
 }
 
 export default function Google3DMap() {
@@ -96,16 +103,29 @@ export default function Google3DMap() {
     });
   };
 
-  // 添加新的状态控制是否启用点击
+  // 添加新的状态控制是否启点击
   const [enableClick, setEnableClick] = useState(false);
 
+  // 在组件顶部添加新的状态
+  const [clickRecords, setClickRecords] = useState<ClickRecord[]>([]);
+  const [showClickModal, setShowClickModal] = useState(false);
+
   // 修改点击监听器函数
-  const addClickListener = (map: Element) => {
+  const addClickListener = async (map: Element) => {
     if (!enableClick) return;
     
-    map.addEventListener("gmp-click", (event: any) => {
+    map.addEventListener("gmp-click", async (event: any) => {
       const position = event.position;
       if (position) {
+        // 记录新的点击
+        const newRecord = {
+          lat: position.lat,
+          lng: position.lng,
+          timestamp: Date.now()
+        };
+        setClickRecords(prev => [...prev, newRecord]);
+        
+        // 更新显示状态
         setClickedLocations(prev => [...prev, {
           lat: position.lat,
           lng: position.lng,
@@ -321,6 +341,41 @@ export default function Google3DMap() {
       ...prev,
       [key]: value,
     }));
+  };
+
+  const saveAllRecords = async () => {
+    try {
+      const supabase = createClient();
+      
+      const insertData = clickRecords.map(record => ({
+        timestamp_ms: record.timestamp,
+        location: `POINT(${record.lng} ${record.lat})`,
+        accuracy: 0,
+        altitude: 0,
+        raw_message: `Batch clicked location: ${record.lat}, ${record.lng}`,
+      }));
+      
+      const { data, error } = await supabase
+        .from("parsed_logs")
+        .insert(insertData)
+        .select();
+
+      if (error) throw error;
+
+      console.log('Successfully inserted locations:', data);
+      
+      // 清除记录
+      setClickRecords([]);
+      setClickedLocations([]);
+      setShowClickModal(false);
+      
+      // 重新获取数据
+      await handleSubmit(new Event('submit') as any);
+      
+    } catch (error: any) {
+      console.error('Error saving locations:', error);
+      setError(error.message || 'Failed to save locations');
+    }
   };
 
   return (
@@ -542,6 +597,16 @@ export default function Google3DMap() {
               </Button>
             </>
           )}
+
+          {clickRecords.length > 0 && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowClickModal(true)}
+            >
+              View Clicks ({clickRecords.length})
+            </Button>
+          )}
         </div>
 
         {enableClick && (
@@ -621,12 +686,12 @@ export default function Google3DMap() {
         )}
       </div>
 
-      {clickedLocation && (
-        <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-4 z-10">
-          <p>Clicked Location:</p>
-          <p>Lat: {clickedLocation.lat.toFixed(6)}</p>
-          <p>Lng: {clickedLocation.lng.toFixed(6)}</p>
-        </div>
+      {showClickModal && (
+        <ClickRecordsModal
+          records={clickRecords}
+          onClose={() => setShowClickModal(false)}
+          onSave={saveAllRecords}
+        />
       )}
     </div>
   );

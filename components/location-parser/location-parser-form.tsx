@@ -139,7 +139,11 @@ export default function LocationParserForm() {
 
   const handleGeocode = async (e: React.FormEvent) => {
     e.preventDefault();
-    const addressList = addresses.split("\n").filter((addr) => addr.trim());
+    // 过滤掉空白行和只包含空格的行
+    const addressList = addresses
+      .split("\n")
+      .map(addr => addr.trim())
+      .filter(addr => addr.length > 0);
 
     if (addressList.length === 0) {
       setError("Please enter at least one address");
