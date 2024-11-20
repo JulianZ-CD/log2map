@@ -1,11 +1,12 @@
 "use client";
 
 import { createClient } from "@/utils/supabase/client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Label } from "../ui/label";
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
 import type { ParsedLocation } from "@/types/location";
+import { Input } from "../ui/input";
 
 export default function LocationParserForm() {
   const [logText, setLogText] = useState("");
@@ -14,6 +15,11 @@ export default function LocationParserForm() {
   const [isUploading, setIsUploading] = useState(false);
   const [showCustomRegex, setShowCustomRegex] = useState(false);
   const [customRegex, setCustomRegex] = useState("");
+  const [address, setAddress] = useState("");
+  const [isGeocoding, setIsGeocoding] = useState(false);
+  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [addresses, setAddresses] = useState("");
+  const [geocodingProgress, setGeocodingProgress] = useState({ current: 0, total: 0 });
 
   // 默认正则表达式
   const defaultPattern = /(\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}\.\d{3}).*?\((\d+\.\d+),\s*(-?\d+\.\d+)\).*?timestamp\s+(\d+)(?:,\s*altitude\s+(\d+\.?\d*))?(?:,\s*accuracy\s+(\d+\.?\d*))/;
@@ -73,6 +79,21 @@ export default function LocationParserForm() {
     setError(parsed.length === 0 ? "No valid locations found" : null);
   };
 
+  useEffect(() => {
+    const fetchApiKey = async () => {
+      try {
+        const response = await fetch("/api/map");
+        const { key } = await response.json();
+        setApiKey(key);
+      } catch (error) {
+        console.error("Failed to fetch API key:", error);
+        setError("Failed to load map API");
+      }
+    };
+
+    fetchApiKey();
+  }, []);
+
   const handleUpload = async () => {
     if (parsedLocations.length === 0) {
       setError("No locations to upload");
@@ -109,8 +130,124 @@ export default function LocationParserForm() {
     }
   };
 
+  const handleGeocode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const addressList = addresses.split('\n').filter(addr => addr.trim());
+    
+    if (addressList.length === 0) {
+      setError("Please enter at least one address");
+      return;
+    }
+
+    if (!apiKey) {
+      setError("API key not loaded");
+      return;
+    }
+
+    setIsGeocoding(true);
+    setError(null);
+    setGeocodingProgress({ current: 0, total: addressList.length });
+
+    const results: string[] = [];
+    const errors: string[] = [];
+
+    // 为了避免超过 API 限制，添加延迟
+    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+    try {
+      for (let i = 0; i < addressList.length; i++) {
+        const address = addressList[i].trim();
+        if (!address) continue;
+
+        try {
+          const response = await fetch(
+            `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
+              address
+            )}&key=${apiKey}`
+          );
+          
+          const data = await response.json();
+          
+          if (data.status === "OK" && data.results?.[0]) {
+            const location = data.results[0].geometry.location;
+            const formattedLocation = `${location.lat},${location.lng}`;
+            results.push(formattedLocation);
+          } else {
+            errors.push(`Failed to geocode "${address}": ${data.status}`);
+          }
+        } catch (err) {
+          errors.push(`Error processing "${address}": ${err instanceof Error ? err.message : 'Unknown error'}`);
+        }
+
+        setGeocodingProgress({ current: i + 1, total: addressList.length });
+        
+        // 添加延迟以避免超过 API 限制
+        if (i < addressList.length - 1) {
+          await delay(200);  // 200ms 延迟
+        }
+      }
+
+      // 将结果添加到日志文本框
+      if (results.length > 0) {
+        setLogText(prevText => {
+          const newText = results.join('\n');
+          return prevText ? `${prevText}\n${newText}` : newText;
+        });
+      }
+
+      // 显示错误信息（如果有）
+      if (errors.length > 0) {
+        setError(`Completed with ${errors.length} errors:\n${errors.join('\n')}`);
+      } else {
+        setError(null);
+      }
+
+      // 清空地址输入
+      setAddresses("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Geocoding failed");
+    } finally {
+      setIsGeocoding(false);
+      setGeocodingProgress({ current: 0, total: 0 });
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6 w-full max-w-4xl mx-auto">
+      <form onSubmit={handleGeocode} className="flex flex-col gap-4">
+        <div className="grid gap-2">
+          <Label htmlFor="addresses">Addresses to Geocode (one per line)</Label>
+          <Textarea
+            id="addresses"
+            value={addresses}
+            onChange={(e) => setAddresses(e.target.value)}
+            placeholder="Enter addresses here, one per line..."
+            className="min-h-[100px]"
+          />
+          <div className="flex gap-2">
+            <Button 
+              type="submit" 
+              disabled={isGeocoding}
+              className="flex-1"
+            >
+              {isGeocoding 
+                ? `Converting (${geocodingProgress.current}/${geocodingProgress.total})...` 
+                : "Convert to Coordinates"}
+            </Button>
+          </div>
+          {isGeocoding && (
+            <div className="w-full bg-secondary rounded-full h-2.5 dark:bg-secondary">
+              <div 
+                className="bg-primary h-2.5 rounded-full transition-all duration-300"
+                style={{ 
+                  width: `${(geocodingProgress.current / geocodingProgress.total) * 100}%` 
+                }}
+              ></div>
+            </div>
+          )}
+        </div>
+      </form>
+
       <form onSubmit={handleLogParse} className="flex flex-col gap-4">
         <div className="grid gap-2">
           <Label htmlFor="log-text">Location Log Text</Label>
