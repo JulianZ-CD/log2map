@@ -36,15 +36,16 @@ export default function RootLayout({
               <nav className="w-full flex justify-center border-b border-b-foreground/10 h-16">
                 <div className="w-full max-w-5xl flex justify-between items-center p-3 px-5 text-sm">
                   <div className="flex gap-5 items-center font-semibold">
-                    <Link href={"/"}>Next.js Supabase Starter</Link>
+                    <Link href={"/"}>Home</Link>
                     <Link href={"/location-parser"}>Location Parser</Link>
                     <Link href={"/3d-map"}>3D Google Map</Link>
-                    <Link href={"/distance-calculator"}>
+                    {/* <Link href={"/distance-calculator"}>
                       Distance Calculator
-                    </Link>
+                    </Link> */}
                     <Link href={"/leaflet-2d-map"}>2D Leaflet Map</Link>
                   </div>
-                  {!hasEnvVars ? <EnvVarWarning /> : <HeaderAuth />}
+                  {/* TODO: Add authentication in the future */}
+                  {/* {!hasEnvVars ? <EnvVarWarning /> : <HeaderAuth />} */}
                 </div>
                 <div className="flex gap-5 items-center">
                   <ThemeSwitcher />
