@@ -165,10 +165,10 @@ export default function Google3DMap() {
     if (poorLocations.length > 0) {
       // 开始动画序列
       await flyThroughLocations(
-        map, 
-        poorLocations, 
-        0, 
-        mapControls.targetLat, 
+        map,
+        poorLocations,
+        0,
+        mapControls.targetLat,
         mapControls.targetLong
       );
     }
@@ -198,8 +198,8 @@ export default function Google3DMap() {
   };
 
   return (
-    <div className="flex flex-col h-full gap-4">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-4">
+    <div className="flex flex-col h-full">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-2 px-4 py-2">
         <div className="grid grid-cols-2 gap-4">
           <div className="grid gap-2">
             <Label htmlFor="map-latitude">Target Latitude</Label>
@@ -334,6 +334,21 @@ export default function Google3DMap() {
       )}
 
       <div className="relative flex-1">
+        <div className="absolute bottom-8 left-4 z-10">
+          <Button 
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              const map = mapRef.current?.firstChild as any;
+              if (map) {
+                map.stopCameraAnimation();
+              }
+            }}
+          >
+            Stop Animation
+          </Button>
+        </div>
         <div ref={mapRef} className="h-[calc(100vh-200px)] w-full" />
 
         {selectedEntry && (
@@ -386,8 +401,8 @@ export default function Google3DMap() {
         )}
       </div>
 
-      <div className="p-4 overflow-auto bg-white">
-        <h3 className="text-lg font-bold mb-2 text-black">
+      <div className="p-2 overflow-auto bg-white">
+        <h3 className="text-lg font-bold mb-1 text-black">
           Debug Information:
         </h3>
         <div className="space-y-2 text-black">
