@@ -6,6 +6,7 @@ import { Label } from "../ui/label";
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
 import type { ParsedLocation } from "@/types/location";
+import { generateLocationSamples } from "@/utils/sample-generator";
 
 export default function LocationParserForm() {
   const [logText, setLogText] = useState("");
@@ -22,6 +23,9 @@ export default function LocationParserForm() {
     current: 0,
     total: 0,
   });
+  const [sampleCount, setSampleCount] = useState(20);
+  const [includeAltitude, setIncludeAltitude] = useState(true);
+  const [isClearing, setIsClearing] = useState(false);
 
   // 默认正则表达式
   const defaultPattern =
@@ -220,8 +224,71 @@ export default function LocationParserForm() {
     }
   };
 
+  const generateSampleData = () => {
+    const samples = generateLocationSamples({
+      count: sampleCount,
+      includeAltitude,
+    });
+    
+    setLogText((prev) => {
+      const newText = samples.join('\n');
+      return prev ? `${prev}\n${newText}` : newText;
+    });
+  };
+
+  const handleClearDatabase = async () => {
+    // 添加确认对话框
+    if (!confirm('Are you sure you want to clear all location data from the database? This action cannot be undone.')) {
+      return;
+    }
+
+    setIsClearing(true);
+    const supabase = createClient();
+
+    try {
+      const { error } = await supabase
+        .from('parsed_logs')
+        .delete()
+        .neq('id', 0); // 删除所有记录
+
+      if (error) throw error;
+      alert('Database cleared successfully!');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to clear database');
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6 w-full max-w-4xl mx-auto">
+      <div className="flex gap-4 items-end">
+        <div className="grid gap-2">
+          <Label htmlFor="sample-count">Generate Sample Data</Label>
+          <input
+            type="number"
+            id="sample-count"
+            value={sampleCount}
+            onChange={(e) => setSampleCount(Math.max(1, parseInt(e.target.value) || 1))}
+            className="flex h-9 w-[100px] rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+            min="1"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="include-altitude"
+            checked={includeAltitude}
+            onChange={(e) => setIncludeAltitude(e.target.checked)}
+            className="h-4 w-4"
+          />
+          <Label htmlFor="include-altitude">Include Altitude</Label>
+        </div>
+        <Button type="button" onClick={generateSampleData}>
+          Generate Sample Data
+        </Button>
+      </div>
+
       <form onSubmit={handleGeocode} className="flex flex-col gap-4">
         <div className="grid gap-2">
           <Label htmlFor="addresses">Addresses to Geocode (one per line)</Label>
@@ -305,6 +372,14 @@ export default function LocationParserForm() {
             }}
           >
             Clear
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={handleClearDatabase}
+            disabled={isClearing}
+          >
+            {isClearing ? "Clearing..." : "Clear Database"}
           </Button>
           {parsedLocations.length > 0 && (
             <Button type="button" onClick={handleUpload} disabled={isUploading}>
