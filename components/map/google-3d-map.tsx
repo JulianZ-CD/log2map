@@ -37,6 +37,11 @@ export default function Google3DMap() {
   const [showRangeSettings, setShowRangeSettings] = useState(false);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [clickedLocation, setClickedLocation] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+  const [clickedLocations, setClickedLocations] = useState<Array<{lat: number, lng: number}>>([]);
 
   // 将所有地图控制状态合并到一个对象中
   const [mapControls, setMapControls] = useState<MapControls>({
@@ -71,32 +76,59 @@ export default function Google3DMap() {
     fetchApiKey();
   }, []);
 
-  // 地图初始化逻辑
+  // 添加一个加载脚本的通用函数
+  const loadGoogleMapsScript = async (apiKey: string): Promise<void> => {
+    if (isScriptLoaded) return;
+
+    return new Promise((resolve) => {
+      const script = document.createElement("script");
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=alpha&libraries=maps3d,marker`;
+      script.async = true;
+      script.defer = true;
+      script.onload = () => {
+        isScriptLoaded = true;
+        resolve();
+      };
+      document.head.appendChild(script);
+      scriptRef.current = script;
+    });
+  };
+
+  // 创建一个添加点击监听器的函数
+  const addClickListener = (map: Element) => {
+    map.addEventListener('gmp-click', (event: any) => {
+      const position = event.position;
+      if (position) {
+        setClickedLocations(prev => [...prev, {
+          lat: position.lat,
+          lng: position.lng
+        }]);
+        setClickedLocation({ lat: position.lat, lng: position.lng });
+      }
+    });
+  };
+
+  // 修改初始化地图的 useEffect
   useEffect(() => {
     if (!apiKey) return;
 
     const initMap = async () => {
       if (typeof window !== "undefined" && mapRef.current) {
-        if (!isScriptLoaded) {
-          const script = document.createElement("script");
-          script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=alpha&libraries=maps3d,marker`;
-          script.async = true;
-          script.defer = true;
-          script.onload = () => {
-            isScriptLoaded = true;
-            const map = document.createElement("gmp-map-3d");
-            map.setAttribute(
-              "center",
-              `${mapControls.targetLat}, ${mapControls.targetLong}`
-            );
-            map.setAttribute("tilt", "60");
-            map.setAttribute("range", "2000");
-            map.style.height = "100%";
-            mapRef.current?.appendChild(map);
-          };
-          document.head.appendChild(script);
-          scriptRef.current = script;
-        }
+        await loadGoogleMapsScript(apiKey);
+
+        const map = document.createElement("gmp-map-3d");
+        map.setAttribute(
+          "center",
+          `${mapControls.targetLat}, ${mapControls.targetLong}`
+        );
+        map.setAttribute("tilt", "60");
+        map.setAttribute("range", "2000");
+        map.style.height = "100%";
+
+        // 使用相同的函数添加点击监听器
+        addClickListener(map);
+
+        mapRef.current?.appendChild(map);
       }
     };
 
@@ -165,7 +197,6 @@ export default function Google3DMap() {
         }));
       }
 
-      // 重新创建地图
       if (mapRef.current) {
         // 清除现有地图
         while (mapRef.current.firstChild) {
@@ -181,22 +212,18 @@ export default function Google3DMap() {
         map.setAttribute("tilt", "60");
         map.setAttribute("range", "1000");
         map.style.height = "100%";
+        
+        // 添加点击事件监听器
+        addClickListener(map);
+        
         mapRef.current.appendChild(map);
 
+        // 确保脚本已加载
         if (!isScriptLoaded) {
-          const script = document.createElement("script");
-          script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=alpha&libraries=maps3d,marker`;
-          script.async = true;
-          script.defer = true;
-          script.onload = async () => {
-            isScriptLoaded = true;
-            await updateMapElements(map, data);
-          };
-          document.head.appendChild(script);
-          scriptRef.current = script;
-        } else {
-          await updateMapElements(map, data);
+          await loadGoogleMapsScript(apiKey);
         }
+        
+        await updateMapElements(map, data);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "An error occurred");
@@ -224,7 +251,7 @@ export default function Google3DMap() {
         map,
         poorLocations,
         0,
-        currentCenter.lat,  // 使用当前中心点而不是 mapControls 中的值
+        currentCenter.lat, // 使用当前中心点��不是 mapControls 中的值
         currentCenter.long,
         mapControls.useTargetLocation
       );
@@ -244,6 +271,25 @@ export default function Google3DMap() {
       },
       setSelectedEntry
     );
+
+    // Add markers for clicked locations
+    if (clickedLocations.length > 0) {
+      const clickedMarkers = clickedLocations.map(pos => ({
+        lat: pos.lat,
+        long: pos.lng,
+        dist_meters: 0,
+        accuracy: 0,
+        timestamp_ms: Date.now()
+      }));
+      
+      await createMarkers(
+        map,
+        clickedMarkers as LogEntry[],
+        { useColorCoding: false, distanceRanges: mapControls.distanceRanges },
+        setSelectedEntry,
+        true // Add an optional parameter to createMarkers to style clicked locations differently
+      );
+    }
   };
 
   // 更新控制状态的辅助函数
@@ -288,7 +334,9 @@ export default function Google3DMap() {
                   type="number"
                   step="any"
                   value={mapControls.targetLat}
-                  onChange={(e) => updateMapControl("targetLat", e.target.value)}
+                  onChange={(e) =>
+                    updateMapControl("targetLat", e.target.value)
+                  }
                   required
                 />
               </div>
@@ -300,7 +348,9 @@ export default function Google3DMap() {
                   type="number"
                   step="any"
                   value={mapControls.targetLong}
-                  onChange={(e) => updateMapControl("targetLong", e.target.value)}
+                  onChange={(e) =>
+                    updateMapControl("targetLong", e.target.value)
+                  }
                   required
                 />
               </div>
@@ -425,7 +475,7 @@ export default function Google3DMap() {
       )}
 
       <div className="relative flex-1">
-        <div className="absolute bottom-8 left-4 z-10">
+        <div className="absolute bottom-8 left-4 z-10 flex gap-2">
           <Button
             type="button"
             variant="secondary"
@@ -439,6 +489,21 @@ export default function Google3DMap() {
           >
             Stop Animation
           </Button>
+
+          {clickedLocations.length > 0 && (
+            <>
+              <div className="bg-blue-500 text-white rounded-lg px-3 py-1.5 flex items-center">
+                Clicked: {clickedLocations.length}
+              </div>
+              <Button 
+                variant="secondary" 
+                size="sm" 
+                onClick={() => setClickedLocations([])}
+              >
+                Clear Clicked
+              </Button>
+            </>
+          )}
         </div>
         <div ref={mapRef} className="h-[calc(100vh-200px)] w-full" />
 
@@ -510,6 +575,14 @@ export default function Google3DMap() {
           </>
         )}
       </div>
+
+      {clickedLocation && (
+        <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-4 z-10">
+          <p>Clicked Location:</p>
+          <p>Lat: {clickedLocation.lat.toFixed(6)}</p>
+          <p>Lng: {clickedLocation.lng.toFixed(6)}</p>
+        </div>
+      )}
     </div>
   );
 }
