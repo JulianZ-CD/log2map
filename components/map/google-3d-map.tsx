@@ -142,9 +142,47 @@ export default function Google3DMap() {
       await window.google.maps.importLibrary("maps3d");
     const { PinElement } = await window.google.maps.importLibrary("marker");
 
+    // 计算所有标记点的经纬度极值
+    const bounds = entries.reduce((acc, entry) => {
+      return {
+        minLat: Math.min(acc.minLat, entry.lat),
+        maxLat: Math.max(acc.maxLat, entry.lat),
+        minLng: Math.min(acc.minLng, entry.long),
+        maxLng: Math.max(acc.maxLng, entry.long),
+      };
+    }, {
+      minLat: entries[0]?.lat || 0,
+      maxLat: entries[0]?.lat || 0,
+      minLng: entries[0]?.long || 0,
+      maxLng: entries[0]?.long || 0,
+    });
+
+    // 添加3D多边形
+    const polygon = document.createElement('gmp-polygon-3d');
+    polygon.setAttribute('altitude-mode', 'relative-to-ground');
+    polygon.setAttribute('fill-color', 'rgba(0, 255, 0, 0.5)'); // 绿色半透明
+    polygon.setAttribute('stroke-color', '#0000ff');
+    polygon.setAttribute('stroke-width', '4');
+    polygon.setAttribute('extruded', '');
+
+    // 等待自定义元素定义完成
+    customElements.whenDefined(polygon.localName).then(() => {
+      // @ts-ignore - 设置多边形坐标
+      polygon.outerCoordinates = [
+        { lat: bounds.minLat, lng: bounds.minLng, altitude: 100 },
+        { lat: bounds.maxLat, lng: bounds.minLng, altitude: 100 },
+        { lat: bounds.maxLat, lng: bounds.maxLng, altitude: 100 },
+        { lat: bounds.minLat, lng: bounds.maxLng, altitude: 100 },
+        { lat: bounds.minLat, lng: bounds.minLng, altitude: 100 }, // 闭合多边形
+      ];
+    });
+
+    map.append(polygon);
+
+    // 继续原有的标记创建逻辑
     entries.forEach((entry) => {
       // 根据设置决定颜色
-      let pinColor = "#EF4444"; // 默认灰色
+      let pinColor = "#EF4444";
 
       if (useColorCoding) {
         if (entry.dist_meters <= distanceRanges.excellent) {
@@ -162,7 +200,13 @@ export default function Google3DMap() {
       });
 
       const interactiveMarker = new Marker3DInteractiveElement({
-        position: { lat: entry.lat, lng: entry.long },
+        position: { 
+          lat: entry.lat, 
+          lng: entry.long, 
+          altitude: entry.altitude || 0
+        },
+        altitudeMode: 'RELATIVE_TO_GROUND',
+        extruded: true,
       });
 
       interactiveMarker.append(pinBackground);
