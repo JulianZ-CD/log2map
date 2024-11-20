@@ -7,7 +7,7 @@ export const createPolyline = async (map: Element, locations: Location[]) => {
   // 创建 polyline 元素
   const polyline = document.createElement('gmp-polyline-3d');
   polyline.setAttribute('altitude-mode', 'relative-to-ground');
-  polyline.setAttribute('stroke-color', 'rgba(139, 69, 19, 0.75)'); // 棕色
+  polyline.setAttribute('stroke-color', 'rgba(57, 255, 20, 0.75)'); // 蓝绿色
   polyline.setAttribute('stroke-width', '15');
   map.appendChild(polyline);
 

@@ -35,7 +35,8 @@ export const flyThroughLocations = async (
   locations: Location[],
   index: number,
   targetLat: string,
-  targetLong: string
+  targetLong: string,
+  useTargetLocation: boolean
 ) => {
   // 对位置进行圆形排序
   const sortedLocations = sortLocationsByCircularPath(locations, targetLat, targetLong);
@@ -44,7 +45,7 @@ export const flyThroughLocations = async (
   await createPolyline(map, sortedLocations);
 
   if (index >= sortedLocations.length) {
-    // 所有位置都访问完后，飞到目标位置并环绕
+    // 飞到相应的中心点并环绕
     await (map as any).flyCameraTo({
       endCamera: {
         center: {
@@ -70,7 +71,7 @@ export const flyThroughLocations = async (
               altitude: 0,
             },
             tilt: 45,
-            range: 1000,
+            range: 2000,
           },
           durationMillis: 5000,
           rounds: 1,
@@ -78,7 +79,6 @@ export const flyThroughLocations = async (
       },
       { once: true }
     );
-
     return;
   }
 
@@ -100,7 +100,7 @@ export const flyThroughLocations = async (
   (map as any).addEventListener(
     "gmp-animationend",
     () => {
-      flyThroughLocations(map, sortedLocations, index + 1, targetLat, targetLong);
+      flyThroughLocations(map, sortedLocations, index + 1, targetLat, targetLong, useTargetLocation);
     },
     { once: true }
   );

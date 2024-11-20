@@ -6,6 +6,7 @@ export interface Rectangle {
   }
   
   export interface MapControls {
+    useTargetLocation: boolean;
     targetLat: string;
     targetLong: string;
     useColorCoding: boolean;

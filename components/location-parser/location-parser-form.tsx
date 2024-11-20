@@ -6,7 +6,6 @@ import { Label } from "../ui/label";
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
 import type { ParsedLocation } from "@/types/location";
-import { Input } from "../ui/input";
 
 export default function LocationParserForm() {
   const [logText, setLogText] = useState("");
@@ -19,11 +18,15 @@ export default function LocationParserForm() {
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [addresses, setAddresses] = useState("");
-  const [geocodingProgress, setGeocodingProgress] = useState({ current: 0, total: 0 });
+  const [geocodingProgress, setGeocodingProgress] = useState({
+    current: 0,
+    total: 0,
+  });
 
   // 默认正则表达式
-  const defaultPattern = /(\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}\.\d{3}).*?\((\d+\.\d+),\s*(-?\d+\.\d+)\).*?timestamp\s+(\d+)(?:,\s*altitude\s+(\d+\.?\d*))?(?:,\s*accuracy\s+(\d+\.?\d*))/;
-  
+  const defaultPattern =
+    /(\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}\.\d{3}).*?\((\d+\.\d+),\s*(-?\d+\.\d+)\).*?timestamp\s+(\d+)(?:,\s*altitude\s+(\d+\.?\d*))?(?:,\s*accuracy\s+(\d+\.?\d*))/;
+
   // 简单坐标格式的正则表达式
   const simpleCoordinatePattern = /^(\d+\.\d+),\s*(-?\d+\.\d+)$/;
 
@@ -108,9 +111,9 @@ export default function LocationParserForm() {
       const insertData = parsedLocations.map((loc) => ({
         timestamp_ms: loc.timestamp_ms,
         location: `POINT(${loc.long} ${loc.lat})`, // PostGIS格式
-        accuracy: loc.accuracy || 0,  // 确保不为null
-        altitude: loc.altitude || 0,  // 确保不为null
-        raw_message: loc.raw_message || "",  // 确保不为null
+        accuracy: loc.accuracy || 0, // 确保不为null
+        altitude: loc.altitude || 0, // 确保不为null
+        raw_message: loc.raw_message || "", // 确保不为null
       }));
 
       const { data, error } = await supabase
@@ -132,8 +135,8 @@ export default function LocationParserForm() {
 
   const handleGeocode = async (e: React.FormEvent) => {
     e.preventDefault();
-    const addressList = addresses.split('\n').filter(addr => addr.trim());
-    
+    const addressList = addresses.split("\n").filter((addr) => addr.trim());
+
     if (addressList.length === 0) {
       setError("Please enter at least one address");
       return;
@@ -152,7 +155,8 @@ export default function LocationParserForm() {
     const errors: string[] = [];
 
     // 为了避免超过 API 限制，添加延迟
-    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+    const delay = (ms: number) =>
+      new Promise((resolve) => setTimeout(resolve, ms));
 
     try {
       for (let i = 0; i < addressList.length; i++) {
@@ -165,9 +169,9 @@ export default function LocationParserForm() {
               address
             )}&key=${apiKey}`
           );
-          
+
           const data = await response.json();
-          
+
           if (data.status === "OK" && data.results?.[0]) {
             const location = data.results[0].geometry.location;
             const formattedLocation = `${location.lat},${location.lng}`;
@@ -176,28 +180,32 @@ export default function LocationParserForm() {
             errors.push(`Failed to geocode "${address}": ${data.status}`);
           }
         } catch (err) {
-          errors.push(`Error processing "${address}": ${err instanceof Error ? err.message : 'Unknown error'}`);
+          errors.push(
+            `Error processing "${address}": ${err instanceof Error ? err.message : "Unknown error"}`
+          );
         }
 
         setGeocodingProgress({ current: i + 1, total: addressList.length });
-        
+
         // 添加延迟以避免超过 API 限制
         if (i < addressList.length - 1) {
-          await delay(200);  // 200ms 延迟
+          await delay(200); // 200ms 延迟
         }
       }
 
       // 将结果添加到日志文本框
       if (results.length > 0) {
-        setLogText(prevText => {
-          const newText = results.join('\n');
+        setLogText((prevText) => {
+          const newText = results.join("\n");
           return prevText ? `${prevText}\n${newText}` : newText;
         });
       }
 
       // 显示错误信息（如果有）
       if (errors.length > 0) {
-        setError(`Completed with ${errors.length} errors:\n${errors.join('\n')}`);
+        setError(
+          `Completed with ${errors.length} errors:\n${errors.join("\n")}`
+        );
       } else {
         setError(null);
       }
@@ -225,22 +233,18 @@ export default function LocationParserForm() {
             className="min-h-[100px]"
           />
           <div className="flex gap-2">
-            <Button 
-              type="submit" 
-              disabled={isGeocoding}
-              className="flex-1"
-            >
-              {isGeocoding 
-                ? `Converting (${geocodingProgress.current}/${geocodingProgress.total})...` 
+            <Button type="submit" disabled={isGeocoding} className="flex-1">
+              {isGeocoding
+                ? `Converting (${geocodingProgress.current}/${geocodingProgress.total})...`
                 : "Convert to Coordinates"}
             </Button>
           </div>
           {isGeocoding && (
             <div className="w-full bg-secondary rounded-full h-2.5 dark:bg-secondary">
-              <div 
+              <div
                 className="bg-primary h-2.5 rounded-full transition-all duration-300"
-                style={{ 
-                  width: `${(geocodingProgress.current / geocodingProgress.total) * 100}%` 
+                style={{
+                  width: `${(geocodingProgress.current / geocodingProgress.total) * 100}%`,
                 }}
               ></div>
             </div>
@@ -268,7 +272,9 @@ export default function LocationParserForm() {
             onChange={(e) => setShowCustomRegex(e.target.checked)}
             className="h-4 w-4"
           />
-          <Label htmlFor="show-custom-regex">Use Custom Regular Expression</Label>
+          <Label htmlFor="show-custom-regex">
+            Use Custom Regular Expression
+          </Label>
         </div>
 
         {showCustomRegex && (
@@ -282,7 +288,8 @@ export default function LocationParserForm() {
               className="font-mono text-sm w-full"
             />
             <p className="text-sm text-muted-foreground">
-              Make sure your pattern includes capture groups for: timestamp, latitude, longitude, altitude (optional), and accuracy.
+              Make sure your pattern includes capture groups for: timestamp,
+              latitude, longitude, altitude (optional), and accuracy.
             </p>
           </div>
         )}
@@ -332,7 +339,10 @@ export default function LocationParserForm() {
               </thead>
               <tbody>
                 {parsedLocations.map((loc, index) => (
-                  <tr key={index} className="border-t border-muted-foreground/20">
+                  <tr
+                    key={index}
+                    className="border-t border-muted-foreground/20"
+                  >
                     <td className="p-2">
                       {new Date(loc.timestamp_ms).toLocaleString()}
                     </td>
