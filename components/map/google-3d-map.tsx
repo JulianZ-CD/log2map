@@ -10,6 +10,7 @@ import type { MapControls } from "@/types/map";
 import { formatTimestamp } from "@/utils/location";
 import { createMarkers } from "@/utils/map/markers";
 import { createPolygons } from "@/utils/map/polygons";
+import { flyThroughLocations } from "@/utils/map/flyCamera";
 
 // 跟踪脚本是否已加载
 let isScriptLoaded = false;
@@ -76,7 +77,10 @@ export default function Google3DMap() {
           script.onload = () => {
             isScriptLoaded = true;
             const map = document.createElement("gmp-map-3d");
-            map.setAttribute("center", `${mapControls.targetLat}, ${mapControls.targetLong}`);
+            map.setAttribute(
+              "center",
+              `${mapControls.targetLat}, ${mapControls.targetLong}`
+            );
             map.setAttribute("tilt", "60");
             map.setAttribute("range", "2000");
             map.style.height = "100%";
@@ -119,7 +123,10 @@ export default function Google3DMap() {
 
         // 创建新地图
         const map = document.createElement("gmp-map-3d");
-        map.setAttribute("center", `${mapControls.targetLat}, ${mapControls.targetLong}`);
+        map.setAttribute(
+          "center",
+          `${mapControls.targetLat}, ${mapControls.targetLong}`
+        );
         map.setAttribute("tilt", "60");
         map.setAttribute("range", "1000");
         map.style.height = "100%";
@@ -147,6 +154,26 @@ export default function Google3DMap() {
 
   // 更新地图元素的辅助函数
   const updateMapElements = async (map: Element, entries: LogEntry[]) => {
+    // 找出误差较大的点（距离超过 good 范围的点）
+    const poorLocations = entries
+      .filter((entry) => entry.dist_meters > mapControls.distanceRanges.good)
+      .map((entry) => ({
+        lat: entry.lat,
+        lng: entry.long,
+      }));
+
+    if (poorLocations.length > 0) {
+      // 开始动画序列
+      await flyThroughLocations(
+        map, 
+        poorLocations, 
+        0, 
+        mapControls.targetLat, 
+        mapControls.targetLong
+      );
+    }
+
+    // 添加标记和多边形
     if (mapControls.showPolygon) {
       createPolygons(map, entries, mapControls.coverageRange);
     }
@@ -164,9 +191,9 @@ export default function Google3DMap() {
 
   // 更新控制状态的辅助函数
   const updateMapControl = (key: keyof MapControls, value: any) => {
-    setMapControls(prev => ({
+    setMapControls((prev) => ({
       ...prev,
-      [key]: value
+      [key]: value,
     }));
   };
 
@@ -208,7 +235,9 @@ export default function Google3DMap() {
                   type="checkbox"
                   className="w-4 h-4"
                   checked={mapControls.useColorCoding}
-                  onChange={(e) => updateMapControl("useColorCoding", e.target.checked)}
+                  onChange={(e) =>
+                    updateMapControl("useColorCoding", e.target.checked)
+                  }
                 />
                 Enable color coding for markers
               </Label>
@@ -219,7 +248,9 @@ export default function Google3DMap() {
                   type="checkbox"
                   className="w-4 h-4"
                   checked={mapControls.showPolygon}
-                  onChange={(e) => updateMapControl("showPolygon", e.target.checked)}
+                  onChange={(e) =>
+                    updateMapControl("showPolygon", e.target.checked)
+                  }
                 />
                 Show Area Polygon
               </Label>
@@ -232,7 +263,9 @@ export default function Google3DMap() {
                     type="number"
                     className="w-20"
                     value={mapControls.coverageRange}
-                    onChange={(e) => updateMapControl("coverageRange", Number(e.target.value))}
+                    onChange={(e) =>
+                      updateMapControl("coverageRange", Number(e.target.value))
+                    }
                     min="1"
                     max="100"
                   />
@@ -327,9 +360,11 @@ export default function Google3DMap() {
                 <span
                   className={`inline-flex items-center ${
                     mapControls.useColorCoding
-                      ? selectedEntry.dist_meters <= mapControls.distanceRanges.excellent
+                      ? selectedEntry.dist_meters <=
+                        mapControls.distanceRanges.excellent
                         ? "text-green-600"
-                        : selectedEntry.dist_meters <= mapControls.distanceRanges.good
+                        : selectedEntry.dist_meters <=
+                            mapControls.distanceRanges.good
                           ? "text-yellow-600"
                           : "text-red-600"
                       : ""
@@ -337,9 +372,11 @@ export default function Google3DMap() {
                 >
                   {selectedEntry.dist_meters.toFixed(2)}m
                   {mapControls.useColorCoding &&
-                    (selectedEntry.dist_meters <= mapControls.distanceRanges.excellent
+                    (selectedEntry.dist_meters <=
+                    mapControls.distanceRanges.excellent
                       ? " (Excellent)"
-                      : selectedEntry.dist_meters <= mapControls.distanceRanges.good
+                      : selectedEntry.dist_meters <=
+                          mapControls.distanceRanges.good
                         ? " (Good)"
                         : " (Poor)")}
                 </span>
@@ -350,7 +387,9 @@ export default function Google3DMap() {
       </div>
 
       <div className="p-4 overflow-auto bg-white">
-        <h3 className="text-lg font-bold mb-2 text-black">Debug Information:</h3>
+        <h3 className="text-lg font-bold mb-2 text-black">
+          Debug Information:
+        </h3>
         <div className="space-y-2 text-black">
           <p>Total locations: {logEntries.length}</p>
           <details>
