@@ -31,6 +31,12 @@ export default function Google3DMap() {
   const [error, setError] = useState<string | null>(null);
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<LogEntry | null>(null);
+  const [useColorCoding, setUseColorCoding] = useState(true);
+  const [distanceRanges, setDistanceRanges] = useState({
+    excellent: 50,
+    good: 200
+  });
+  const [showRangeSettings, setShowRangeSettings] = useState(false);
 
   // 在组件加载时获取 API key
   useEffect(() => {
@@ -134,12 +140,32 @@ export default function Google3DMap() {
   const createMarkers = async (map: Element, entries: LogEntry[]) => {
     const { Marker3DElement, Marker3DInteractiveElement } =
       await window.google.maps.importLibrary("maps3d");
+    const { PinElement } = await window.google.maps.importLibrary("marker");
 
     entries.forEach((entry) => {
+      // 根据设置决定颜色
+      let pinColor = "#EF4444"; // 默认灰色
+
+      if (useColorCoding) {
+        if (entry.dist_meters <= distanceRanges.excellent) {
+          pinColor = "#34D399"; // 绿色
+        } else if (entry.dist_meters <= distanceRanges.good) {
+          pinColor = "#FBBC04"; // 黄色
+        } else {
+          pinColor = "#EF4444"; // 红色
+        }
+      }
+
+      const pinBackground = new PinElement({
+        background: pinColor,
+        glyphColor: "#FFFFFF",
+      });
+
       const interactiveMarker = new Marker3DInteractiveElement({
         position: { lat: entry.lat, lng: entry.long },
       });
 
+      interactiveMarker.append(pinBackground);
       interactiveMarker.addEventListener("gmp-click", () => {
         setSelectedEntry(entry);
       });
@@ -176,6 +202,66 @@ export default function Google3DMap() {
             />
           </div>
         </div>
+        <div className="space-y-4 border-t pt-4">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="color-coding" className="flex items-center gap-2">
+              <Input
+                id="color-coding"
+                type="checkbox"
+                className="w-4 h-4"
+                checked={useColorCoding}
+                onChange={(e) => setUseColorCoding(e.target.checked)}
+              />
+              Enable color coding for markers
+            </Label>
+            
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowRangeSettings(!showRangeSettings)}
+            >
+              {showRangeSettings ? 'Hide' : 'Show'} Range Settings
+            </Button>
+          </div>
+
+          {showRangeSettings && useColorCoding && (
+            <div className="grid gap-4 p-4 border rounded-lg">
+              <div className="grid gap-2">
+                <Label htmlFor="excellent-range">
+                  Excellent Range (Green) - Up to (meters):
+                </Label>
+                <Input
+                  id="excellent-range"
+                  type="number"
+                  value={distanceRanges.excellent}
+                  onChange={(e) => setDistanceRanges(prev => ({
+                    ...prev,
+                    excellent: Number(e.target.value)
+                  }))}
+                  min="0"
+                />
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="good-range">
+                  Good Range (Yellow) - Up to (meters):
+                </Label>
+                <Input
+                  id="good-range"
+                  type="number"
+                  value={distanceRanges.good}
+                  onChange={(e) => setDistanceRanges(prev => ({
+                    ...prev,
+                    good: Number(e.target.value)
+                  }))}
+                  min={distanceRanges.excellent}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
         <Button type="submit">Update Location</Button>
       </form>
 
@@ -187,12 +273,12 @@ export default function Google3DMap() {
 
       <div className="relative flex-1">
         <div ref={mapRef} className="h-[calc(100vh-200px)] w-full" />
-        
+
         {selectedEntry && (
           <div className="absolute top-4 right-4 bg-white rounded-lg shadow-lg p-4 max-w-sm border border-gray-200">
             <div className="flex justify-between items-center mb-2">
               <h3 className="font-semibold text-black">Location Details</h3>
-              <button 
+              <button
                 onClick={() => setSelectedEntry(null)}
                 className="text-gray-500 hover:text-gray-700"
               >
@@ -200,9 +286,30 @@ export default function Google3DMap() {
               </button>
             </div>
             <div className="space-y-2 text-black">
-              <p><strong>Time:</strong> {formatTimestamp(selectedEntry.timestamp_ms)}</p>
-              <p><strong>Accuracy:</strong> {selectedEntry.accuracy.toFixed(2)}m</p>
-              <p><strong>Distance:</strong> {selectedEntry.dist_meters.toFixed(2)}m</p>
+              <p>
+                <strong>Time:</strong>{" "}
+                {formatTimestamp(selectedEntry.timestamp_ms)}
+              </p>
+              <p>
+                <strong>Accuracy:</strong> {selectedEntry.accuracy.toFixed(2)}m
+              </p>
+              <p>
+                <strong>Distance:</strong>{" "}
+                <span className={`inline-flex items-center ${
+                  useColorCoding ? (
+                    selectedEntry.dist_meters <= distanceRanges.excellent ? 'text-green-600' :
+                    selectedEntry.dist_meters <= distanceRanges.good ? 'text-yellow-600' :
+                    'text-red-600'
+                  ) : ''
+                }`}>
+                  {selectedEntry.dist_meters.toFixed(2)}m
+                  {useColorCoding && (
+                    selectedEntry.dist_meters <= distanceRanges.excellent ? ' (Excellent)' :
+                    selectedEntry.dist_meters <= distanceRanges.good ? ' (Good)' :
+                    ' (Poor)'
+                  )}
+                </span>
+              </p>
             </div>
           </div>
         )}
