@@ -25,11 +25,11 @@ export function AnalyticsDisplay({ analytics }: AnalyticsDisplayProps) {
           </div>
           
           <div className="space-y-2">
-            <h4 className="font-semibold">Distance Statistics</h4>
+            <h4 className="font-semibold">Distance Error Statistics</h4>
             <ul className="space-y-1 text-sm">
-              <li>Mean: {analytics.distance.mean.toFixed(2)}m</li>
-              <li>Maximum: {analytics.distance.max.toFixed(2)}m</li>
-              <li>Minimum: {analytics.distance.min.toFixed(2)}m</li>
+              <li>Mean: {analytics.distance_error.mean.toFixed(2)}m</li>
+              <li>Maximum: {analytics.distance_error.max.toFixed(2)}m</li>
+              <li>Minimum: {analytics.distance_error.min.toFixed(2)}m</li>
             </ul>
           </div>
           

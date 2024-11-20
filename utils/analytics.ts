@@ -7,7 +7,7 @@ export interface Analytics {
     percentile90: number;
     max: number;
   };
-  distance: {
+  distance_error: {
     mean: number;
     max: number;
     min: number;
@@ -41,7 +41,7 @@ export function analyzeLocationData(entries: LogEntry[], goodRangeThreshold: num
       percentile90: sortedAccuracies[idx90]?.accuracy || 0,
       max: Math.max(...entries.map(e => e.accuracy)),
     },
-    distance: {
+    distance_error: {
       mean: entries.reduce((sum, e) => sum + e.dist_meters, 0) / entries.length,
       max: Math.max(...entries.map(e => e.dist_meters)),
       min: Math.min(...entries.map(e => e.dist_meters)),
