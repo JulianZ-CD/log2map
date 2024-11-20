@@ -41,7 +41,9 @@ export default function Google3DMap() {
     lat: number;
     lng: number;
   } | null>(null);
-  const [clickedLocations, setClickedLocations] = useState<Array<{lat: number, lng: number}>>([]);
+  const [clickedLocations, setClickedLocations] = useState<
+    Array<{ lat: number; lng: number }>
+  >([]);
 
   // 将所有地图控制状态合并到一个对象中
   const [mapControls, setMapControls] = useState<MapControls>({
@@ -94,14 +96,19 @@ export default function Google3DMap() {
     });
   };
 
-  // 创建一个添加点击监听器的函数
+  // 添加新的状态控制是否启用点击
+  const [enableClick, setEnableClick] = useState(false);
+
+  // 修改点击监听器函数
   const addClickListener = (map: Element) => {
-    map.addEventListener('gmp-click', (event: any) => {
+    if (!enableClick) return;
+    
+    map.addEventListener("gmp-click", (event: any) => {
       const position = event.position;
       if (position) {
         setClickedLocations(prev => [...prev, {
           lat: position.lat,
-          lng: position.lng
+          lng: position.lng,
         }]);
         setClickedLocation({ lat: position.lat, lng: position.lng });
       }
@@ -212,17 +219,17 @@ export default function Google3DMap() {
         map.setAttribute("tilt", "60");
         map.setAttribute("range", "1000");
         map.style.height = "100%";
-        
+
         // 添加点击事件监听器
         addClickListener(map);
-        
+
         mapRef.current.appendChild(map);
 
         // 确保脚本已加载
         if (!isScriptLoaded) {
           await loadGoogleMapsScript(apiKey);
         }
-        
+
         await updateMapElements(map, data);
       }
     } catch (e) {
@@ -251,7 +258,7 @@ export default function Google3DMap() {
         map,
         poorLocations,
         0,
-        currentCenter.lat, // 使用当前中心点��不是 mapControls 中的值
+        currentCenter.lat,
         currentCenter.long,
         mapControls.useTargetLocation
       );
@@ -260,6 +267,22 @@ export default function Google3DMap() {
     // 添加标记和多边形
     if (mapControls.showPolygon) {
       createPolygons(map, entries, mapControls.coverageRange);
+
+      if (clickedLocations.length > 0) {
+        const clickedEntries = clickedLocations.map((pos) => ({
+          lat: pos.lat,
+          long: pos.lng,
+          dist_meters: 0,
+          accuracy: 0,
+          timestamp_ms: Date.now(),
+        }));
+
+        createPolygons(
+          map,
+          clickedEntries as LogEntry[],
+          mapControls.coverageRange
+        );
+      }
     }
 
     await createMarkers(
@@ -274,14 +297,14 @@ export default function Google3DMap() {
 
     // Add markers for clicked locations
     if (clickedLocations.length > 0) {
-      const clickedMarkers = clickedLocations.map(pos => ({
+      const clickedMarkers = clickedLocations.map((pos) => ({
         lat: pos.lat,
         long: pos.lng,
         dist_meters: 0,
         accuracy: 0,
-        timestamp_ms: Date.now()
+        timestamp_ms: Date.now(),
       }));
-      
+
       await createMarkers(
         map,
         clickedMarkers as LogEntry[],
@@ -465,7 +488,22 @@ export default function Google3DMap() {
           </>
         )}
 
-        <Button type="submit">Update Location</Button>
+        <div className="flex items-center justify-between border-t pt-4">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="enable-click" className="flex items-center gap-2">
+              <Input
+                id="enable-click"
+                type="checkbox"
+                className="w-4 h-4"
+                checked={enableClick}
+                onChange={(e) => setEnableClick(e.target.checked)}
+              />
+              Enable Click to Add Locations
+            </Label>
+          </div>
+        </div>
+
+        <Button type="submit">Update Map</Button>
       </form>
 
       {error && (
@@ -495,9 +533,9 @@ export default function Google3DMap() {
               <div className="bg-blue-500 text-white rounded-lg px-3 py-1.5 flex items-center">
                 Clicked: {clickedLocations.length}
               </div>
-              <Button 
-                variant="secondary" 
-                size="sm" 
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={() => setClickedLocations([])}
               >
                 Clear Clicked
@@ -505,6 +543,13 @@ export default function Google3DMap() {
             </>
           )}
         </div>
+
+        {enableClick && (
+          <div className="absolute top-4 right-4 bg-blue-500 text-white px-3 py-1.5 rounded-lg z-10">
+            Click Mode: Active
+          </div>
+        )}
+
         <div ref={mapRef} className="h-[calc(100vh-200px)] w-full" />
 
         {selectedEntry && (
