@@ -28,6 +28,8 @@ const sortLocationsByCircularPath = (
   });
 };
 
+import { createPolyline } from './polyline';
+
 export const flyThroughLocations = async (
   map: Element,
   locations: Location[],
@@ -38,6 +40,9 @@ export const flyThroughLocations = async (
   // 对位置进行圆形排序
   const sortedLocations = sortLocationsByCircularPath(locations, targetLat, targetLong);
   
+  // 创建围栏式 polyline
+  await createPolyline(map, sortedLocations);
+
   if (index >= sortedLocations.length) {
     // 所有位置都访问完后，飞到目标位置并环绕
     await (map as any).flyCameraTo({
@@ -47,7 +52,7 @@ export const flyThroughLocations = async (
           lng: parseFloat(targetLong),
           altitude: 0,
         },
-        tilt: 60,
+        tilt: 45,
         range: 1000,
       },
       durationMillis: 2000,
@@ -64,7 +69,7 @@ export const flyThroughLocations = async (
               lng: parseFloat(targetLong),
               altitude: 0,
             },
-            tilt: 60,
+            tilt: 45,
             range: 1000,
           },
           durationMillis: 5000,
@@ -85,7 +90,7 @@ export const flyThroughLocations = async (
         lng: sortedLocations[index].lng,
         altitude: 0,
       },
-      tilt: 30,
+      tilt: 45,
       range: 1000,
     },
     durationMillis: 1500,
