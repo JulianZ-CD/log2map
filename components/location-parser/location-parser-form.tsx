@@ -12,29 +12,58 @@ export default function LocationParserForm() {
   const [parsedLocations, setParsedLocations] = useState<ParsedLocation[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [showCustomRegex, setShowCustomRegex] = useState(false);
+  const [customRegex, setCustomRegex] = useState("");
+
+  // 默认正则表达式
+  const defaultPattern = /(\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}\.\d{3}).*?\((\d+\.\d+),\s*(-?\d+\.\d+)\).*?timestamp\s+(\d+)(?:,\s*altitude\s+(\d+\.?\d*))?(?:,\s*accuracy\s+(\d+\.?\d*))/;
+  
+  // 简单坐标格式的正则表达式
+  const simpleCoordinatePattern = /^(\d+\.\d+),\s*(-?\d+\.\d+)$/;
 
   const handleLogParse = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // 分割多行文本
     const lines = logText.split("\n");
     const parsed: ParsedLocation[] = [];
 
-    // 更新正则表达式以匹配完整格式
-    const pattern =
-      /(\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}\.\d{3}).*?\((\d+\.\d+),\s*(-?\d+\.\d+)\).*?timestamp\s+(\d+),\s*accuracy\s+(\d+\.?\d*)/;
+    // 使用自定义正则表达式或默认正则表达式
+    let pattern;
+    try {
+      pattern = customRegex ? new RegExp(customRegex) : defaultPattern;
+    } catch (e) {
+      setError("Invalid regular expression");
+      return;
+    }
 
     lines.forEach((line) => {
       if (!line.trim()) return;
 
+      // 首先尝试完整日志格式
       const match = line.match(pattern);
       if (match) {
-        const [_, logTime, lat, long, timestamp, accuracy] = match;
+        const [_, logTime, lat, long, timestamp, altitude, accuracy] = match;
         parsed.push({
           timestamp_ms: parseInt(timestamp),
           lat: parseFloat(lat),
           long: parseFloat(long),
-          accuracy: parseFloat(accuracy),
+          altitude: altitude ? parseFloat(altitude) : 0,
+          accuracy: accuracy ? parseFloat(accuracy) : 0,
+          raw_message: line.trim(),
+        });
+        return;
+      }
+
+      // 如果不匹配完整格式，尝试简单坐标格式
+      const simpleMatch = line.match(simpleCoordinatePattern);
+      if (simpleMatch) {
+        const [_, lat, long] = simpleMatch;
+        parsed.push({
+          timestamp_ms: 0, // 使用当前时间戳
+          lat: parseFloat(lat),
+          long: parseFloat(long),
+          altitude: 0,
+          accuracy: 0,
           raw_message: line.trim(),
         });
       }
@@ -54,12 +83,13 @@ export default function LocationParserForm() {
     const supabase = createClient();
 
     try {
-      // 准备插入数据
+      // 准备插入数据，所有可选字段都需要判断
       const insertData = parsedLocations.map((loc) => ({
         timestamp_ms: loc.timestamp_ms,
         location: `POINT(${loc.long} ${loc.lat})`, // PostGIS格式
-        accuracy: loc.accuracy,
-        raw_message: loc.raw_message,
+        accuracy: loc.accuracy || 0,  // 确保不为null
+        altitude: loc.altitude || 0,  // 确保不为null
+        raw_message: loc.raw_message || "",  // 确保不为null
       }));
 
       const { data, error } = await supabase
@@ -68,7 +98,6 @@ export default function LocationParserForm() {
 
       if (error) throw error;
 
-      // 上传成功后清空表单
       setLogText("");
       setParsedLocations([]);
       setError(null);
@@ -93,6 +122,33 @@ export default function LocationParserForm() {
             className="min-h-[200px] font-mono text-sm w-full"
           />
         </div>
+
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="show-custom-regex"
+            checked={showCustomRegex}
+            onChange={(e) => setShowCustomRegex(e.target.checked)}
+            className="h-4 w-4"
+          />
+          <Label htmlFor="show-custom-regex">Use Custom Regular Expression</Label>
+        </div>
+
+        {showCustomRegex && (
+          <div className="grid gap-2">
+            <Label htmlFor="custom-regex">Regular Expression Pattern</Label>
+            <Textarea
+              id="custom-regex"
+              value={customRegex}
+              onChange={(e) => setCustomRegex(e.target.value)}
+              placeholder="Enter custom regex pattern..."
+              className="font-mono text-sm w-full"
+            />
+            <p className="text-sm text-muted-foreground">
+              Make sure your pattern includes capture groups for: timestamp, latitude, longitude, altitude (optional), and accuracy.
+            </p>
+          </div>
+        )}
 
         <div className="flex gap-2">
           <Button type="submit">Parse Log</Button>
@@ -133,20 +189,19 @@ export default function LocationParserForm() {
                   <th className="text-left p-2">Timestamp</th>
                   <th className="text-left p-2">Latitude</th>
                   <th className="text-left p-2">Longitude</th>
+                  <th className="text-left p-2">Altitude</th>
                   <th className="text-left p-2">Accuracy</th>
                 </tr>
               </thead>
               <tbody>
                 {parsedLocations.map((loc, index) => (
-                  <tr
-                    key={index}
-                    className="border-t border-muted-foreground/20"
-                  >
+                  <tr key={index} className="border-t border-muted-foreground/20">
                     <td className="p-2">
                       {new Date(loc.timestamp_ms).toLocaleString()}
                     </td>
                     <td className="p-2">{loc.lat}</td>
                     <td className="p-2">{loc.long}</td>
+                    <td className="p-2">{loc.altitude.toFixed(2)}m</td>
                     <td className="p-2">{loc.accuracy.toFixed(2)}m</td>
                   </tr>
                 ))}

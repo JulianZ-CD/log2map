@@ -2,7 +2,7 @@ export interface ParsedLocation {
   timestamp_ms: number;
   lat: number;
   long: number;
-//   altitude: number;
+  altitude: number;
   accuracy: number;
   raw_message: string;
 }
