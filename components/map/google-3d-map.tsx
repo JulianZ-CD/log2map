@@ -113,7 +113,7 @@ export default function Google3DMap() {
   // 修改点击监听器函数
   const addClickListener = async (map: Element) => {
     if (!enableClick) return;
-    
+
     map.addEventListener("gmp-click", async (event: any) => {
       const position = event.position;
       if (position) {
@@ -121,15 +121,18 @@ export default function Google3DMap() {
         const newRecord = {
           lat: position.lat,
           lng: position.lng,
-          timestamp: Date.now()
+          timestamp: Date.now(),
         };
-        setClickRecords(prev => [...prev, newRecord]);
-        
+        setClickRecords((prev) => [...prev, newRecord]);
+
         // 更新显示状态
-        setClickedLocations(prev => [...prev, {
-          lat: position.lat,
-          lng: position.lng,
-        }]);
+        setClickedLocations((prev) => [
+          ...prev,
+          {
+            lat: position.lat,
+            lng: position.lng,
+          },
+        ]);
         setClickedLocation({ lat: position.lat, lng: position.lng });
       }
     });
@@ -346,15 +349,15 @@ export default function Google3DMap() {
   const saveAllRecords = async () => {
     try {
       const supabase = createClient();
-      
-      const insertData = clickRecords.map(record => ({
+
+      const insertData = clickRecords.map((record) => ({
         timestamp_ms: record.timestamp,
         location: `POINT(${record.lng} ${record.lat})`,
         accuracy: 0,
         altitude: 0,
         raw_message: `Batch clicked location: ${record.lat}, ${record.lng}`,
       }));
-      
+
       const { data, error } = await supabase
         .from("parsed_logs")
         .insert(insertData)
@@ -362,19 +365,18 @@ export default function Google3DMap() {
 
       if (error) throw error;
 
-      console.log('Successfully inserted locations:', data);
-      
+      console.log("Successfully inserted locations:", data);
+
       // 清除记录
       setClickRecords([]);
       setClickedLocations([]);
       setShowClickModal(false);
-      
+
       // 重新获取数据
-      await handleSubmit(new Event('submit') as any);
-      
+      await handleSubmit(new Event("submit") as any);
     } catch (error: any) {
-      console.error('Error saving locations:', error);
-      setError(error.message || 'Failed to save locations');
+      console.error("Error saving locations:", error);
+      setError(error.message || "Failed to save locations");
     }
   };
 
@@ -568,45 +570,47 @@ export default function Google3DMap() {
       )}
 
       <div className="relative flex-1">
-        <div className="absolute bottom-8 left-4 z-10 flex gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => {
-              const map = mapRef.current?.firstChild as any;
-              if (map) {
-                map.stopCameraAnimation();
-              }
-            }}
-          >
-            Stop Animation
-          </Button>
+        <div className="absolute bottom-8 left-4 z-10 flex flex-col gap-2">
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                const map = mapRef.current?.firstChild as any;
+                if (map) {
+                  map.stopCameraAnimation();
+                }
+              }}
+            >
+              Stop Animation
+            </Button>
 
-          {clickedLocations.length > 0 && (
-            <>
-              <div className="bg-blue-500 text-white rounded-lg px-3 py-1.5 flex items-center">
-                Clicked: {clickedLocations.length}
-              </div>
+            {clickedLocations.length > 0 && (
+              <>
+                <div className="bg-blue-500 text-white rounded-lg px-3 py-1.5 flex items-center">
+                  Clicked: {clickedLocations.length}
+                </div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setClickedLocations([])}
+                >
+                  Clear Clicked
+                </Button>
+              </>
+            )}
+
+            {clickRecords.length > 0 && (
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => setClickedLocations([])}
+                onClick={() => setShowClickModal(true)}
               >
-                Clear Clicked
+                View Clicks ({clickRecords.length})
               </Button>
-            </>
-          )}
-
-          {clickRecords.length > 0 && (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setShowClickModal(true)}
-            >
-              View Clicks ({clickRecords.length})
-            </Button>
-          )}
+            )}
+          </div>
         </div>
 
         {enableClick && (
