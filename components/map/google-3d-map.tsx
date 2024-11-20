@@ -30,6 +30,7 @@ export default function Google3DMap() {
   const [targetLong, setTargetLong] = useState("-96.668880");
   const [error, setError] = useState<string | null>(null);
   const [apiKey, setApiKey] = useState<string | null>(null);
+  const [selectedEntry, setSelectedEntry] = useState<LogEntry | null>(null);
 
   // 在组件加载时获取 API key
   useEffect(() => {
@@ -134,21 +135,13 @@ export default function Google3DMap() {
     const { Marker3DElement, Marker3DInteractiveElement } =
       await window.google.maps.importLibrary("maps3d");
 
-
     entries.forEach((entry) => {
       const interactiveMarker = new Marker3DInteractiveElement({
         position: { lat: entry.lat, lng: entry.long },
       });
 
-      interactiveMarker.addEventListener("gmp-click", (event: any) => {
-        // `
-        //   <div>
-        //     <p><strong>Time:</strong> ${formatTimestamp(entry.timestamp_ms)}</p>
-        //     <p><strong>Accuracy:</strong> ${entry.accuracy.toFixed(2)}m</p>
-        //     <p><strong>Distance:</strong> ${entry.dist_meters.toFixed(2)}m</p>
-        //   </div>
-        // `;
-        alert("111");
+      interactiveMarker.addEventListener("gmp-click", () => {
+        setSelectedEntry(entry);
       });
 
       map.append(interactiveMarker);
@@ -192,7 +185,28 @@ export default function Google3DMap() {
         </div>
       )}
 
-      <div ref={mapRef} className="h-[calc(100vh-200px)] w-full" />
+      <div className="relative flex-1">
+        <div ref={mapRef} className="h-[calc(100vh-200px)] w-full" />
+        
+        {selectedEntry && (
+          <div className="absolute top-4 right-4 bg-white rounded-lg shadow-lg p-4 max-w-sm border border-gray-200">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="font-semibold text-black">Location Details</h3>
+              <button 
+                onClick={() => setSelectedEntry(null)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ×
+              </button>
+            </div>
+            <div className="space-y-2 text-black">
+              <p><strong>Time:</strong> {formatTimestamp(selectedEntry.timestamp_ms)}</p>
+              <p><strong>Accuracy:</strong> {selectedEntry.accuracy.toFixed(2)}m</p>
+              <p><strong>Distance:</strong> {selectedEntry.dist_meters.toFixed(2)}m</p>
+            </div>
+          </div>
+        )}
+      </div>
 
       <div className="p-4 overflow-auto bg-white">
         <h3 className="text-lg font-bold mb-2 text-black">
